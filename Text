@@ -40,10 +40,10 @@ local leftId, rightId, straightId = gameAnims.Left, gameAnims.Right, gameAnims.S
 local dashRange = 40
 local minDist = 4
 local maxDist = 5
-local minGap = 1.2
+local minGap = 4.5
 local maxGap = 60
 local targetDist = 15
-local straightSpeed = 120
+local straightSpeed = 180
 local velPredict = 0.5
 local aspect = 390 / 480
 local btnImage = "rbxassetid://5852470908"
@@ -281,10 +281,15 @@ end
 
 local m1Enabled = false
 local dashEnabled = false
+
+-- ══════════════════════════════════════════
+--  GUI
+-- ══════════════════════════════════════════
 local settingsGui = Instance.new("ScreenGui")
 settingsGui.Name = "SettingsGui"
 settingsGui.ResetOnSpawn = false
 settingsGui.Parent = lp:WaitForChild("PlayerGui")
+
 local clickSfx = Instance.new("Sound")
 clickSfx.SoundId = "rbxassetid://6042053626"
 clickSfx.Volume = 0.7
@@ -308,126 +313,152 @@ local function makeDraggable(gui)
 	end)
 end
 
-local function createToggle(text, callback)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, 100, 0, 35)
-	btn.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
-	btn.Text = text
-	btn.TextColor3 = Color3.fromRGB(0, 0, 0)
-	btn.Font = Enum.Font.Gotham
-	btn.TextSize = 14
-	btn.AutoButtonColor = false
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-	local dot = Instance.new("Frame")
-	dot.Size = UDim2.new(0, 15, 0, 15)
-	dot.Position = UDim2.new(1, -24, 0.5, -7)
-	dot.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
-	dot.Parent = btn
-	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-	local enabled = false
-	local function update()
-		dot.BackgroundColor3 = enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(180, 180, 180)
-		btn.BackgroundColor3 = enabled and Color3.fromRGB(220, 220, 220) or Color3.fromRGB(245, 245, 245)
-	end
-	local function set(val, fire)
-		enabled = not not val
-		update()
-		if fire and callback then
-			pcall(function() callback(enabled) end)
-		end
-	end
-	btn.MouseButton1Click:Connect(function()
-		pcall(function() clickSfx:Play() end)
-		set(not enabled, true)
-	end)
-	return btn, set
-end
-
+-- Main frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 340, 0, 270)
-mainFrame.Position = UDim2.new(0.5, -170, 0.5, -135)
-mainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-mainFrame.BackgroundTransparency = 0.3
-mainFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-mainFrame.BorderSizePixel = 2
+mainFrame.Size = UDim2.new(0, 320, 0, 220)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -110)
+mainFrame.BackgroundColor3 = Color3.fromRGB(10, 18, 35)
+mainFrame.BorderSizePixel = 0
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.ClipsDescendants = true
 mainFrame.Parent = settingsGui
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
-mainFrame.Size = UDim2.new(0, 0, 0, 0)
-tween:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 340, 0, 270)}):Play()
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
 
-local header = Instance.new("TextLabel")
-header.Size = UDim2.new(1, 0, 0, 35)
-header.BackgroundColor3 = Color3.fromRGB(235, 235, 235)
-header.Text = "Settings V1"
-header.TextColor3 = Color3.fromRGB(0, 0, 0)
-header.Font = Enum.Font.GothamBold
-header.TextSize = 18
+local stroke = Instance.new("UIStroke", mainFrame)
+stroke.Color = Color3.fromRGB(30, 80, 160)
+stroke.Thickness = 1.5
+
+mainFrame.Size = UDim2.new(0, 0, 0, 0)
+tween:Create(mainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 320, 0, 220)}):Play()
+
+-- Header
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 36)
+header.BackgroundColor3 = Color3.fromRGB(15, 30, 65)
+header.BorderSizePixel = 0
 header.Parent = mainFrame
-Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
+
+local headerTitle = Instance.new("TextLabel")
+headerTitle.Size = UDim2.new(1, -40, 1, 0)
+headerTitle.Position = UDim2.new(0, 12, 0, 0)
+headerTitle.BackgroundTransparency = 1
+headerTitle.Text = "Supa Tech"
+headerTitle.TextColor3 = Color3.fromRGB(180, 210, 255)
+headerTitle.Font = Enum.Font.GothamBold
+headerTitle.TextSize = 15
+headerTitle.TextXAlignment = Enum.TextXAlignment.Left
+headerTitle.Parent = header
 
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 35, 0, 35)
-closeBtn.Position = UDim2.new(1, -40, 0, 0)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-closeBtn.Text = "-"
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -34, 0, 4)
+closeBtn.BackgroundColor3 = Color3.fromRGB(30, 55, 110)
+closeBtn.Text = "×"
 closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-closeBtn.TextSize = 20
+closeBtn.TextColor3 = Color3.fromRGB(160, 190, 255)
+closeBtn.TextSize = 18
+closeBtn.BorderSizePixel = 0
 closeBtn.Parent = mainFrame
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 closeBtn.AutoButtonColor = false
 
-local toggleFrame = Instance.new("Frame")
-toggleFrame.Size = UDim2.new(1, -20, 0, 90)
-toggleFrame.Position = UDim2.new(0, 10, 0, 45)
-toggleFrame.BackgroundTransparency = 1
-toggleFrame.Parent = mainFrame
-local grid = Instance.new("UIGridLayout")
-grid.CellSize = UDim2.new(0.5, -10, 0, 35)
-grid.CellPadding = UDim2.new(0, 10, 0, 10)
-grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
-grid.VerticalAlignment = Enum.VerticalAlignment.Top
-grid.Parent = toggleFrame
+-- Toggle function
+local function createToggle(parent, text, xPos, callback)
+	local btn = Instance.new("Frame")
+	btn.Size = UDim2.new(0, 135, 0, 38)
+	btn.Position = xPos
+	btn.BackgroundColor3 = Color3.fromRGB(15, 28, 58)
+	btn.BorderSizePixel = 0
+	btn.Parent = parent
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 
-local m1Btn, setM1 = createToggle("M1", function(v) m1Enabled = v end)
-m1Btn.Parent = toggleFrame
-local dashBtn, setDash = createToggle("Dash", function(v) dashEnabled = v end)
-dashBtn.Parent = toggleFrame
+	local s = Instance.new("UIStroke", btn)
+	s.Color = Color3.fromRGB(25, 60, 130)
+	s.Thickness = 1
 
-local discordLink = "https://discord.gg/M8G6y32Gxt"
-local discordBtn = Instance.new("TextButton")
-discordBtn.Size = UDim2.new(0, 100, 0, 35)
-discordBtn.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
-discordBtn.Text = "Discord"
-discordBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-discordBtn.Font = Enum.Font.GothamBold
-discordBtn.TextSize = 14
-discordBtn.Parent = toggleFrame
-Instance.new("UICorner", discordBtn).CornerRadius = UDim.new(0, 8)
-discordBtn.AutoButtonColor = false
-discordBtn.MouseButton1Click:Connect(function()
-	pcall(function() clickSfx:Play() end)
-	local copied = false
-	pcall(function() if setclipboard then setclipboard(discordLink) copied = true end end)
-	if not copied then
-		pcall(function() lp:SetAttribute("LastDiscordInvite", discordLink) end)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -40, 1, 0)
+	label.Position = UDim2.new(0, 12, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(160, 195, 255)
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = btn
+
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.new(0, 12, 0, 12)
+	dot.Position = UDim2.new(1, -22, 0.5, -6)
+	dot.BackgroundColor3 = Color3.fromRGB(40, 70, 140)
+	dot.BorderSizePixel = 0
+	dot.Parent = btn
+	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+
+	local enabled = false
+	local clickArea = Instance.new("TextButton")
+	clickArea.Size = UDim2.new(1, 0, 1, 0)
+	clickArea.BackgroundTransparency = 1
+	clickArea.Text = ""
+	clickArea.Parent = btn
+
+	local function update()
+		dot.BackgroundColor3 = enabled and Color3.fromRGB(50, 140, 255) or Color3.fromRGB(40, 70, 140)
+		s.Color = enabled and Color3.fromRGB(50, 120, 255) or Color3.fromRGB(25, 60, 130)
 	end
-	local oldText = discordBtn.Text
-	discordBtn.Text = copied and "Copied" or "Stored"
-	task.delay(0.9, function() pcall(function() discordBtn.Text = oldText end) end)
-end)
+
+	local function set(val, fire)
+		enabled = not not val
+		update()
+		if fire and callback then pcall(function() callback(enabled) end) end
+	end
+
+	clickArea.MouseButton1Click:Connect(function()
+		pcall(function() clickSfx:Play() end)
+		set(not enabled, true)
+	end)
+
+	return btn, set
+end
+
+-- Toggle area
+local toggleArea = Instance.new("Frame")
+toggleArea.Size = UDim2.new(1, -20, 0, 50)
+toggleArea.Position = UDim2.new(0, 10, 0, 44)
+toggleArea.BackgroundTransparency = 1
+toggleArea.Parent = mainFrame
+
+local _, setM1 = createToggle(toggleArea, "M1", UDim2.new(0, 0, 0, 0), function(v) m1Enabled = v end)
+local _, setDash = createToggle(toggleArea, "Dash", UDim2.new(0, 145, 0, 0), function(v) dashEnabled = v end)
+
+-- Player list
+local listLabel = Instance.new("TextLabel")
+listLabel.Size = UDim2.new(1, -20, 0, 18)
+listLabel.Position = UDim2.new(0, 10, 0, 100)
+listLabel.BackgroundTransparency = 1
+listLabel.Text = "Target"
+listLabel.TextColor3 = Color3.fromRGB(80, 120, 200)
+listLabel.Font = Enum.Font.Gotham
+listLabel.TextSize = 12
+listLabel.TextXAlignment = Enum.TextXAlignment.Left
+listLabel.Parent = mainFrame
 
 local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, -20, 0, 70)
-scroll.Position = UDim2.new(0, 10, 0, 145)
-scroll.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
-scroll.ScrollBarThickness = 4
+scroll.Size = UDim2.new(1, -20, 0, 60)
+scroll.Position = UDim2.new(0, 10, 0, 118)
+scroll.BackgroundColor3 = Color3.fromRGB(8, 15, 32)
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 3
+scroll.ScrollBarImageColor3 = Color3.fromRGB(40, 90, 200)
 scroll.Parent = mainFrame
-Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 7)
+
+local scrollStroke = Instance.new("UIStroke", scroll)
+scrollStroke.Color = Color3.fromRGB(20, 50, 110)
+scrollStroke.Thickness = 1
+
 local list = Instance.new("UIListLayout")
-list.Padding = UDim.new(0, 4)
+list.Padding = UDim.new(0, 3)
 list.Parent = scroll
 
 local function refreshList()
@@ -437,58 +468,115 @@ local function refreshList()
 	for _, player in ipairs(plrs:GetPlayers()) do
 		if player ~= lp then
 			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1, -10, 0, 26)
-			btn.BackgroundColor3 = Color3.fromRGB(235, 235, 235)
-			btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+			btn.Size = UDim2.new(1, -6, 0, 24)
+			btn.BackgroundColor3 = Color3.fromRGB(15, 28, 58)
+			btn.TextColor3 = Color3.fromRGB(160, 195, 255)
 			btn.TextXAlignment = Enum.TextXAlignment.Left
-			btn.TextSize = 14
+			btn.TextSize = 13
 			btn.Font = Enum.Font.Gotham
-			btn.Text = "   " .. player.Name
+			btn.Text = "  " .. player.Name
+			btn.BorderSizePixel = 0
 			btn.Parent = scroll
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
 			btn.MouseButton1Click:Connect(function()
 				selectedTarget = player
 				for _, b in ipairs(scroll:GetChildren()) do
-					if b:IsA("TextButton") then b.BackgroundColor3 = Color3.fromRGB(235, 235, 235) end
+					if b:IsA("TextButton") then
+						b.BackgroundColor3 = Color3.fromRGB(15, 28, 58)
+						b.TextColor3 = Color3.fromRGB(160, 195, 255)
+					end
 				end
-				btn.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+				btn.BackgroundColor3 = Color3.fromRGB(20, 60, 140)
+				btn.TextColor3 = Color3.fromRGB(220, 235, 255)
 			end)
 			btn.MouseButton2Click:Connect(function()
 				if selectedTarget == player then
 					selectedTarget = nil
-					btn.BackgroundColor3 = Color3.fromRGB(235, 235, 235)
+					btn.BackgroundColor3 = Color3.fromRGB(15, 28, 58)
+					btn.TextColor3 = Color3.fromRGB(160, 195, 255)
 				end
 			end)
-			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-			if selectedTarget == player then btn.BackgroundColor3 = Color3.fromRGB(100, 200, 255) end
+			if selectedTarget == player then
+				btn.BackgroundColor3 = Color3.fromRGB(20, 60, 140)
+				btn.TextColor3 = Color3.fromRGB(220, 235, 255)
+			end
 		end
 	end
+	scroll.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 6)
 end
 
 refreshList()
 
+-- Buttons row
 local refreshBtn = Instance.new("TextButton")
-refreshBtn.Size = UDim2.new(0, 110, 0, 36)
-refreshBtn.Position = UDim2.new(1, -122, 1, -44)
-refreshBtn.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+refreshBtn.Size = UDim2.new(0, 140, 0, 32)
+refreshBtn.Position = UDim2.new(1, -152, 1, -40)
+refreshBtn.BackgroundColor3 = Color3.fromRGB(18, 45, 100)
 refreshBtn.Text = "Refresh"
-refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+refreshBtn.TextColor3 = Color3.fromRGB(160, 200, 255)
 refreshBtn.Font = Enum.Font.GothamBold
-refreshBtn.TextSize = 16
+refreshBtn.TextSize = 14
+refreshBtn.BorderSizePixel = 0
 refreshBtn.Parent = mainFrame
-Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", refreshBtn).Color = Color3.fromRGB(30, 75, 170)
 refreshBtn.AutoButtonColor = false
 
 local adjustBtn = Instance.new("TextButton")
-adjustBtn.Size = UDim2.new(0, 110, 0, 36)
-adjustBtn.Position = UDim2.new(0, 12, 1, -44)
-adjustBtn.BackgroundColor3 = Color3.fromRGB(110, 110, 110)
+adjustBtn.Size = UDim2.new(0, 140, 0, 32)
+adjustBtn.Position = UDim2.new(0, 10, 1, -40)
+adjustBtn.BackgroundColor3 = Color3.fromRGB(18, 45, 100)
 adjustBtn.Text = "Adjust"
-adjustBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+adjustBtn.TextColor3 = Color3.fromRGB(160, 200, 255)
 adjustBtn.Font = Enum.Font.GothamBold
-adjustBtn.TextSize = 16
+adjustBtn.TextSize = 14
+adjustBtn.BorderSizePixel = 0
 adjustBtn.Parent = mainFrame
-Instance.new("UICorner", adjustBtn).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", adjustBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", adjustBtn).Color = Color3.fromRGB(30, 75, 170)
 adjustBtn.AutoButtonColor = false
+
+-- Settings reopen button
+local settingsBtn = Instance.new("TextButton")
+settingsBtn.Size = UDim2.new(0, 80, 0, 30)
+settingsBtn.Position = UDim2.new(0.5, -40, 0.5, -15)
+settingsBtn.BackgroundColor3 = Color3.fromRGB(12, 25, 55)
+settingsBtn.Text = "Open"
+settingsBtn.TextColor3 = Color3.fromRGB(140, 180, 255)
+settingsBtn.Font = Enum.Font.GothamBold
+settingsBtn.TextSize = 14
+settingsBtn.Visible = false
+settingsBtn.BorderSizePixel = 0
+settingsBtn.Parent = settingsGui
+Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", settingsBtn).Color = Color3.fromRGB(30, 75, 170)
+settingsBtn.AutoButtonColor = false
+
+local function addClickTween(btn, callback)
+	btn.MouseButton1Click:Connect(function()
+		btn:TweenSize(btn.Size - UDim2.new(0, 4, 0, 4), "Out", "Quad", 0.07, true, function()
+			btn:TweenSize(btn.Size + UDim2.new(0, 4, 0, 4), "Out", "Quad", 0.07)
+			if callback then callback() end
+		end)
+	end)
+end
+
+addClickTween(closeBtn, function()
+	pcall(function() clickSfx:Play() end)
+	local t = tween:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+	t:Play()
+	t.Completed:Wait()
+	mainFrame.Visible = false
+	settingsBtn.Visible = true
+end)
+
+addClickTween(settingsBtn, function()
+	pcall(function() clickSfx:Play() end)
+	settingsBtn.Visible = false
+	mainFrame.Visible = true
+	mainFrame.Size = UDim2.new(0, 0, 0, 0)
+	tween:Create(mainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 320, 0, 220)}):Play()
+end)
 
 refreshBtn.MouseButton1Click:Connect(function()
 	pcall(function() clickSfx:Play() end)
@@ -499,53 +587,12 @@ plrs.PlayerRemoving:Connect(function(p)
 	if selectedTarget == p then selectedTarget = nil end
 	refreshList()
 end)
-
 plrs.PlayerAdded:Connect(refreshList)
-
-local settingsBtn = Instance.new("TextButton")
-settingsBtn.Size = UDim2.new(0, 60, 0, 35)
-settingsBtn.Position = UDim2.new(0.5, -30, 0.5, -17)
-settingsBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-settingsBtn.Text = "Settings"
-settingsBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-settingsBtn.Font = Enum.Font.GothamBold
-settingsBtn.TextSize = 14
-settingsBtn.Visible = false
-settingsBtn.Parent = settingsGui
-settingsBtn.BorderSizePixel = 2
-settingsBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
-Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0, 10)
-settingsBtn.AutoButtonColor = false
-
-local function addClickTween(btn, callback)
-	btn.MouseButton1Click:Connect(function()
-		btn:TweenSize(btn.Size - UDim2.new(0, 5, 0, 5), "Out", "Quad", 0.08, true, function()
-			btn:TweenSize(btn.Size + UDim2.new(0, 5, 0, 5), "Out", "Quad", 0.08)
-			if callback then callback() end
-		end)
-	end)
-end
-
-addClickTween(closeBtn, function()
-	pcall(function() clickSfx:Play() end)
-	local tweenOut = tween:Create(mainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
-	tweenOut:Play()
-	tweenOut.Completed:Wait()
-	mainFrame.Visible = false
-	settingsBtn.Visible = true
-end)
-
-addClickTween(settingsBtn, function()
-	pcall(function() clickSfx:Play() end)
-	settingsBtn.Visible = false
-	mainFrame.Visible = true
-	mainFrame.Size = UDim2.new(0, 0, 0, 0)
-	tween:Create(mainFrame, TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 340, 0, 270)}):Play()
-end)
 
 makeDraggable(mainFrame)
 makeDraggable(settingsBtn)
 
+-- Adjust GUI
 local adjustGui = nil
 local function showAdjustGui()
 	if adjustGui and adjustGui.Parent then
@@ -556,33 +603,51 @@ local function showAdjustGui()
 	adjustGui = Instance.new("ScreenGui")
 	adjustGui.Name = "AdjustGui"
 	adjustGui.Parent = lp:WaitForChild("PlayerGui")
-	adjustGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	local frame = Instance.new("Frame")
 	frame.Parent = adjustGui
-	frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	frame.BackgroundTransparency = 0.3
+	frame.BackgroundColor3 = Color3.fromRGB(10, 18, 35)
+	frame.BorderSizePixel = 0
 	frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	frame.Size = UDim2.new(0, 320, 0, 240)
+	frame.Size = UDim2.new(0, 300, 0, 230)
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
 	makeDraggable(frame)
-	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
-	local stroke = Instance.new("UIStroke")
-	stroke.Parent = frame
-	stroke.Color = Color3.fromRGB(255, 255, 255)
-	stroke.Thickness = 1
-	stroke.Transparency = 0.5
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+	local fs = Instance.new("UIStroke", frame)
+	fs.Color = Color3.fromRGB(30, 80, 160)
+	fs.Thickness = 1.5
+
+	local fHeader = Instance.new("Frame")
+	fHeader.Size = UDim2.new(1, 0, 0, 34)
+	fHeader.BackgroundColor3 = Color3.fromRGB(15, 30, 65)
+	fHeader.BorderSizePixel = 0
+	fHeader.Parent = frame
+	Instance.new("UICorner", fHeader).CornerRadius = UDim.new(0, 10)
+
+	local fTitle = Instance.new("TextLabel")
+	fTitle.Size = UDim2.new(1, -40, 1, 0)
+	fTitle.Position = UDim2.new(0, 12, 0, 0)
+	fTitle.BackgroundTransparency = 1
+	fTitle.Text = "Adjust"
+	fTitle.TextColor3 = Color3.fromRGB(180, 210, 255)
+	fTitle.Font = Enum.Font.GothamBold
+	fTitle.TextSize = 14
+	fTitle.TextXAlignment = Enum.TextXAlignment.Left
+	fTitle.Parent = fHeader
+
 	local close = Instance.new("TextButton")
 	close.Parent = frame
-	close.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-	close.Position = UDim2.new(0.82, 0, 0.05, 0)
-	close.Size = UDim2.new(0, 30, 0, 30)
+	close.BackgroundColor3 = Color3.fromRGB(30, 55, 110)
+	close.Position = UDim2.new(1, -34, 0, 3)
+	close.Size = UDim2.new(0, 28, 0, 28)
 	close.Font = Enum.Font.GothamBold
-	close.Text = "X"
-	close.TextColor3 = Color3.fromRGB(255, 255, 255)
-	close.TextScaled = true
-	close.AutoButtonColor = false
+	close.Text = "×"
+	close.TextColor3 = Color3.fromRGB(160, 190, 255)
+	close.TextSize = 18
+	close.BorderSizePixel = 0
 	Instance.new("UICorner", close).CornerRadius = UDim.new(0, 6)
-	close.MouseButton1Click:Connect(function() frame:Destroy() end)
+	close.AutoButtonColor = false
+	close.MouseButton1Click:Connect(function() adjustGui:Destroy() adjustGui = nil end)
+
 	local sliders = {"Dash speed", "Dash Degrees", "Dash gap"}
 	for i, name in ipairs(sliders) do
 		local label = Instance.new("TextLabel")
@@ -590,102 +655,87 @@ local function showAdjustGui()
 		label.BackgroundTransparency = 1
 		label.Text = name
 		label.Font = Enum.Font.Gotham
-		label.TextColor3 = Color3.fromRGB(120, 120, 120)
+		label.TextColor3 = Color3.fromRGB(100, 150, 220)
 		label.TextScaled = true
 		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Size = UDim2.new(0, 120, 0, 20)
-		label.Position = UDim2.new(0.04, 0, 0.18 + (i - 1) * 0.24, 0)
+		label.Size = UDim2.new(0, 110, 0, 20)
+		label.Position = UDim2.new(0.04, 0, 0.2 + (i - 1) * 0.24, 0)
+
 		local container = Instance.new("Frame")
 		container.Parent = frame
 		container.BackgroundTransparency = 1
-		container.Size = UDim2.new(0, 160, 0, 24)
-		container.Position = UDim2.new(0.38, 5, 0.18 + (i - 1) * 0.24, 0)
+		container.Size = UDim2.new(0, 130, 0, 24)
+		container.Position = UDim2.new(0.42, 0, 0.2 + (i - 1) * 0.24, 0)
+
 		local bar = Instance.new("Frame")
 		bar.Parent = container
-		bar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		bar.BackgroundTransparency = 0.7
-		bar.Size = UDim2.new(1, -20, 0, 6)
-		bar.Position = UDim2.new(0, 10, 0.5, -3)
+		bar.BackgroundColor3 = Color3.fromRGB(20, 45, 95)
+		bar.BorderSizePixel = 0
+		bar.Size = UDim2.new(1, -20, 0, 5)
+		bar.Position = UDim2.new(0, 10, 0.5, -2)
 		Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+		local fill = Instance.new("Frame")
+		fill.Parent = bar
+		fill.BackgroundColor3 = Color3.fromRGB(50, 120, 255)
+		fill.BorderSizePixel = 0
+		fill.Size = UDim2.new(0, 0, 1, 0)
+		Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
 		local handle = Instance.new("TextButton")
 		handle.Parent = container
-		handle.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
-		handle.Size = UDim2.new(0, 20, 0, 20)
-		handle.Position = UDim2.new(0, -10, 0.5, -10)
+		handle.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+		handle.Size = UDim2.new(0, 18, 0, 18)
+		handle.Position = UDim2.new(0, -9, 0.5, -9)
 		handle.Text = ""
+		handle.BorderSizePixel = 0
 		handle.AutoButtonColor = false
 		handle.ZIndex = 2
 		Instance.new("UICorner", handle).CornerRadius = UDim.new(1, 0)
+
 		local valLabel = Instance.new("TextLabel")
 		valLabel.Parent = frame
-		valLabel.Size = UDim2.new(0, 70, 0, 20)
-		valLabel.Position = UDim2.new(0.82, 0, 0.18 + (i - 1) * 0.24, 0)
+		valLabel.Size = UDim2.new(0, 60, 0, 20)
+		valLabel.Position = UDim2.new(0.82, 0, 0.2 + (i - 1) * 0.24, 0)
 		valLabel.BackgroundTransparency = 1
 		valLabel.Font = Enum.Font.GothamBold
-		valLabel.TextColor3 = Color3.fromRGB(25, 25, 25)
-		valLabel.TextSize = 14
+		valLabel.TextColor3 = Color3.fromRGB(160, 200, 255)
+		valLabel.TextSize = 13
 		valLabel.Text = "--"
+
 		local dragging = false
 		local value = 0
-		local default = name == "Dash speed" and 49 or name == "Dash Degrees" and 32 or 14
+		local default = name == "Dash speed" and 80 or name == "Dash Degrees" and 18 or 40
 		value = sliderVals[name] ~= nil and sliderVals[name] or default
-		handle.Position = UDim2.new(value / 100, -10, 0.5, -10)
+		handle.Position = UDim2.new(value / 100, -9, 0.5, -9)
+		fill.Size = UDim2.new(value / 100, 0, 1, 0)
 		sliderVals[name] = value
+
 		local function updateLabel()
-			if name == "Dash speed" then
-				valLabel.Text = string.format("%.2fs", getDashDuration(value))
-			elseif name == "Dash Degrees" then
-				valLabel.Text = string.format("%d°", math.floor(getDashAngle(value)))
-			elseif name == "Dash gap" then
-				valLabel.Text = string.format("%.1f", getDashDist(value))
-			else
-				valLabel.Text = tostring(value)
-			end
+			if name == "Dash speed" then valLabel.Text = string.format("%.2fs", getDashDuration(value))
+			elseif name == "Dash Degrees" then valLabel.Text = string.format("%d°", math.floor(getDashAngle(value)))
+			elseif name == "Dash gap" then valLabel.Text = string.format("%.1f", getDashDist(value))
+			else valLabel.Text = tostring(value) end
 		end
 		updateLabel()
+
 		local function setValue(x)
 			local barWidth = bar.AbsoluteSize.X
 			local barX = bar.AbsolutePosition.X
 			if barWidth == 0 then return end
 			local t = math.clamp((x - barX) / barWidth, 0, 1)
-			handle.Position = UDim2.new(t, -10, 0.5, -10)
+			handle.Position = UDim2.new(t, -9, 0.5, -9)
+			fill.Size = UDim2.new(t, 0, 1, 0)
 			value = math.floor(t * 100)
 			sliderVals[name] = value
 			updateLabel()
 		end
-		handle.InputBegan:Connect(function(inp)
-			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-				dragging = true
-				if inp.Position then setValue(inp.Position.X) end
-			end
-		end)
-		handle.InputEnded:Connect(function(inp)
-			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-				dragging = false
-			end
-		end)
-		bar.InputBegan:Connect(function(inp)
-			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-				dragging = true
-				if inp.Position then setValue(inp.Position.X) end
-			end
-		end)
-		bar.InputEnded:Connect(function(inp)
-			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-				dragging = false
-			end
-		end)
-		container.InputBegan:Connect(function(inp)
-			if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = true
-				if inp.Position then setValue(inp.Position.X) end
-			end
-		end)
-		container.InputEnded:Connect(function(inp)
-			if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = false
-			end
-		end)
+
+		local function startDrag(inp) dragging = true if inp.Position then setValue(inp.Position.X) end end
+		local function stopDrag(inp) dragging = false end
+		handle.InputBegan:Connect(startDrag) handle.InputEnded:Connect(stopDrag)
+		bar.InputBegan:Connect(startDrag) bar.InputEnded:Connect(stopDrag)
+		container.InputBegan:Connect(startDrag) container.InputEnded:Connect(stopDrag)
 		input.InputChanged:Connect(function(inp)
 			if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) and inp.Position then
 				setValue(inp.Position.X)
@@ -700,14 +750,8 @@ adjustBtn.MouseButton1Click:Connect(function()
 end)
 
 if savedSettings then
-	if savedSettings.Dash ~= nil and setDash then
-		setDash(savedSettings.Dash, true)
-		dashEnabled = savedSettings.Dash
-	end
-	if savedSettings.M1 ~= nil and setM1 then
-		setM1(savedSettings.M1, true)
-		m1Enabled = savedSettings.M1
-	end
+	if savedSettings.Dash ~= nil and setDash then setDash(savedSettings.Dash, true) dashEnabled = savedSettings.Dash end
+	if savedSettings.M1 ~= nil and setM1 then setM1(savedSettings.M1, true) m1Enabled = savedSettings.M1 end
 end
 
 local function createDashButton()
@@ -730,17 +774,11 @@ local function createDashButton()
 	sound.Volume = 0.9
 	local dragging, dragStart, startPos, dragInput
 	local function tweenScale(target, time)
-		local t = tween:Create(scale, TweenInfo.new(time or 0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = target})
-		t:Play()
+		tween:Create(scale, TweenInfo.new(time or 0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = target}):Play()
 	end
 	btn.InputBegan:Connect(function(inp)
 		if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			dragStart = inp.Position
-			startPos = btn.Position
-			dragInput = inp
-			tweenScale(0.92, 0.06)
-			sound:Play()
+			dragging = true dragStart = inp.Position startPos = btn.Position dragInput = inp tweenScale(0.92, 0.06) sound:Play()
 		end
 	end)
 	input.InputChanged:Connect(function(inp)
@@ -752,15 +790,9 @@ local function createDashButton()
 	input.InputEnded:Connect(function(inp)
 		if inp == dragInput and dragging then
 			if (inp.Position - dragStart).Magnitude < 8 and tick() - lastDash >= 2 then
-				if not isDead() then
-					local target = getCurrentTarget()
-					if target then
-						circularDash(target)
-					end
-				end
+				if not isDead() then local target = getCurrentTarget() if target then circularDash(target) end end
 			end
-			tweenScale(1, 0.06)
-			dragging = false
+			tweenScale(1, 0.06) dragging = false
 		end
 	end)
 end
@@ -770,21 +802,10 @@ input.InputBegan:Connect(function(inp, gp)
 	if isDead() then return end
 	local key = input.GamepadEnabled and Enum.KeyCode.DPadUp or Enum.KeyCode.G
 	local shouldDash = false
-	if inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode and (inp.KeyCode == Enum.KeyCode.X or inp.KeyCode == key) then
-		shouldDash = true
-	end
-	if (inp.UserInputType == Enum.UserInputType.Gamepad1 or inp.UserInputType == Enum.UserInputType.Gamepad2 or inp.UserInputType == Enum.UserInputType.Gamepad3 or inp.UserInputType == Enum.UserInputType.Gamepad4) and inp.KeyCode == Enum.KeyCode.DPadUp then
-		shouldDash = true
-	end
-	if inp.UserInputType == Enum.UserInputType.MouseButton1 and inp.Target and inp.Target.Name == "DashButton" then
-		shouldDash = true
-	end
-	if shouldDash then
-		local target = getCurrentTarget()
-		if target then
-			circularDash(target)
-		end
-	end
+	if inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode and (inp.KeyCode == Enum.KeyCode.X or inp.KeyCode == key) then shouldDash = true end
+	if (inp.UserInputType == Enum.UserInputType.Gamepad1 or inp.UserInputType == Enum.UserInputType.Gamepad2 or inp.UserInputType == Enum.UserInputType.Gamepad3 or inp.UserInputType == Enum.UserInputType.Gamepad4) and inp.KeyCode == Enum.KeyCode.DPadUp then shouldDash = true end
+	if inp.UserInputType == Enum.UserInputType.MouseButton1 and inp.Target and inp.Target.Name == "DashButton" then shouldDash = true end
+	if shouldDash then local target = getCurrentTarget() if target then circularDash(target) end end
 end)
 
 local dashDur = 0.45
@@ -797,40 +818,19 @@ function circularDash(target)
 	isDashing = true
 	local h = char:FindFirstChildOfClass("Humanoid")
 	local oldRot = h and h.AutoRotate
-	if h then
-		shouldDisableRot = true
-		pcall(function() h.AutoRotate = false end)
-	end
+	if h then shouldDisableRot = true pcall(function() h.AutoRotate = false end) end
 	local function restore()
-		if h and oldRot ~= nil then
-			shouldDisableRot = false
-			pcall(function() h.AutoRotate = oldRot end)
-		end
+		if h and oldRot ~= nil then shouldDisableRot = false pcall(function() h.AutoRotate = oldRot end) end
 	end
-	local speedVal = sliderVals["Dash speed"]
-	if not speedVal then
-		speedVal = savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash speed"]) or 49
-	end
-	local angleVal = sliderVals["Dash Degrees"]
-	if not angleVal then
-		angleVal = savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash Degrees"]) or 32
-	end
-	local gapVal = sliderVals["Dash gap"]
-	if not gapVal then
-		gapVal = savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash gap"]) or 14
-	end
+	local speedVal = sliderVals["Dash speed"] or (savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash speed"])) or 49
+	local angleVal = sliderVals["Dash Degrees"] or (savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash Degrees"])) or 32
+	local gapVal = sliderVals["Dash gap"] or (savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash gap"])) or 14
 	local duration = getDashDuration(speedVal)
 	local angle = math.rad(getDashAngle(angleVal))
 	local gap = math.clamp(getDashDist(gapVal), minGap, maxGap)
 	local targetHrp = target.HumanoidRootPart
-	if (targetHrp.Position - hrp.Position).Magnitude >= targetDist then
-		straightDash(targetHrp, straightSpeed)
-	end
-	if not targetHrp or not targetHrp.Parent or not hrp or not hrp.Parent then
-		restore()
-		isDashing = false
-		return
-	end
+	if (targetHrp.Position - hrp.Position).Magnitude >= targetDist then straightDash(targetHrp, straightSpeed) end
+	if not targetHrp or not targetHrp.Parent or not hrp or not hrp.Parent then restore() isDashing = false return end
 	local targetPos = targetHrp.Position
 	local myPos = hrp.Position
 	local right = hrp.CFrame.RightVector
@@ -850,12 +850,7 @@ function circularDash(target)
 	local function cleanup()
 		if finished then return end
 		finished = true
-		task.delay(0.7, function()
-			canEnd = true
-			if endQueued then
-				isDashing = false
-			end
-		end)
+		task.delay(0.7, function() canEnd = true if endQueued then isDashing = false end end)
 		restore()
 		lastDash = tick()
 	end
@@ -863,9 +858,7 @@ function circularDash(target)
 		sendComm({{Mobile = true, Goal = "LeftClick"}})
 		task.delay(0.05, function() sendComm({{Goal = "LeftClickRelease", Mobile = true}}) end)
 	end
-	if dashEnabled then
-		sendComm({{Dash = Enum.KeyCode.W, Key = Enum.KeyCode.Q, Goal = "KeyPress"}})
-	end
+	if dashEnabled then sendComm({{Dash = Enum.KeyCode.W, Key = Enum.KeyCode.Q, Goal = "KeyPress"}}) end
 	conn = run.Heartbeat:Connect(function()
 		local t = math.clamp((tick() - start) / duration, 0, 1)
 		local e = easeCubic(t)
@@ -878,21 +871,13 @@ function circularDash(target)
 		local camAngle = math.atan2(hrp.CFrame.LookVector.Z, hrp.CFrame.LookVector.X)
 		local finalAngle = camAngle + angleDiff(lookAngle, camAngle) * 0.7
 		pcall(function() hrp.CFrame = CFrame.new(nextPos, nextPos + Vector3.new(math.cos(finalAngle), 0, math.sin(finalAngle))) end)
-		if not aimed and aspect <= e then
-			aimed = true
-			cleanup()
-		end
+		if not aimed and aspect <= e then aimed = true cleanup() end
 		if t >= 1 then
 			conn:Disconnect()
 			pcall(function() if sideAnim and sideAnim.IsPlaying then sideAnim:Stop() end sideAnim = nil end)
-			if not aimed then
-				aimed = true
-				cleanup()
-			end
+			if not aimed then aimed = true cleanup() end
 			endQueued = true
-			if canEnd then
-				isDashing = false
-			end
+			if canEnd then isDashing = false end
 		end
 	end)
 end
