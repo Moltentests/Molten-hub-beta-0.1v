@@ -1,1776 +1,900 @@
-local Players             = game:GetService("Players")
-local RunService          = game:GetService("RunService")
-local UserInputService    = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local TweenService        = game:GetService("TweenService")
+local plrs = game:GetService("Players")
+local run = game:GetService("RunService")
+local input = game:GetService("UserInputService")
+local tween = game:GetService("TweenService")
+local http = game:GetService("HttpService")
+local ws = workspace
+local lp = plrs.LocalPlayer
+local cam = ws.CurrentCamera
 
-local player    = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+math.randomseed(tick() % 65536)
+local char = lp.Character or lp.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+local hum = char:FindFirstChildOfClass("Humanoid")
 
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-
--- ══════════════════════════════════════════
---  STATE VARIABLES
--- ══════════════════════════════════════════
-local keySpam         = false
-local spamDelay       = 0.12
-local deathTP         = false
-local lastDeathCFrame
-local loopGoto        = false
-local loopTargetName  = ""
-local autoReset       = false
-local resetDelay      = 2
-local m1Spam          = false
-local m1Delay         = 0.1
-local xczEnabled      = false
-local xczCooldown     = false
-local sideDash        = false
-local sideDashLoaded  = false
-local altBalantTarget = ""
-local altBalantActive = false
-local altBalantBusy   = false
-
--- ══════════════════════════════════════════
---  WINDOW
--- ══════════════════════════════════════════
-local Window = WindUI:CreateWindow({
-    Title        = "🔥 MOLTEN HUB",
-    Icon         = "flame",
-    Author       = "Made by Molten 🔥",
-    Folder       = "MoltenHub",
-    KeySystem    = false,
-    Size         = UDim2.fromOffset(550, 400),
-    Background   = 124902049881738,
-    NewElements  = true,
-    VStacking    = true,
-    HStacking    = true,
-})
-
--- ══════════════════════════════════════════
---  TABS
--- ══════════════════════════════════════════
-local MovementTab  = Window:Tab({ Title = "Movement",  Icon = "footprints" })
-local UtilityTab   = Window:Tab({ Title = "Utility",   Icon = "wrench" })
-local MiscTab      = Window:Tab({ Title = "Misc",      Icon = "more-horizontal" })
-local LocalTab     = Window:Tab({ Title = "Local",     Icon = "user" })
-local EspTab       = Window:Tab({ Title = "ESP",       Icon = "eye" })
-local DummyTab     = Window:Tab({ Title = "Dummy",     Icon = "target" })
-local TechTab      = Window:Tab({ Title = "Tech",      Icon = "zap" })
-local AutoTab      = Window:Tab({ Title = "Auto",      Icon = "refresh-cw" })
-local ServerTab    = Window:Tab({ Title = "Server",    Icon = "server" })
-local AutoBlockTab = Window:Tab({ Title = "AutoBlock", Icon = "shield" })
-local AdminTab     = Window:Tab({ Title = "Admin",     Icon = "crown" })
-
--- ══════════════════════════════════════════
---  NOTIFY HELPER
--- ══════════════════════════════════════════
-local function Notify(title, content, duration)
-    WindUI:Notify({
-        Title    = title,
-        Content  = content,
-        Duration = duration or 3,
-    })
+local function isDead()
+	if not hum or not hum.Parent then return false end
+	if hum.Health <= 0 then return true end
+	if hum.PlatformStand then return true end
+	local success, state = pcall(function() return hum:GetState() end)
+	if success and state == Enum.HumanoidStateType.Physics then return true end
+	local ragdoll = char:FindFirstChild("Ragdoll")
+	if ragdoll and ragdoll:IsA("BoolValue") and ragdoll.Value then return true end
+	return false
 end
 
--- ══════════════════════════════════════════
---  MOVEMENT TAB
--- ══════════════════════════════════════════
-MovementTab:Section({ Title = "Side Dash Assist" })
-
-MovementTab:Toggle({
-    Title   = "🔥 Molten Dash",
-    Default = false,
-    Callback = function(val)
-        sideDash = val
-        if val and not sideDashLoaded then
-            sideDashLoaded = true
-            task.spawn(function()
-                local splash = Instance.new("ScreenGui", playerGui)
-                splash.ResetOnSpawn = false
-                splash.IgnoreGuiInset = true
-                splash.DisplayOrder = 999
-
-                local bg = Instance.new("Frame", splash)
-                bg.Size = UDim2.fromScale(1,1)
-                bg.BackgroundColor3 = Color3.fromRGB(20,0,40)
-                bg.BorderSizePixel = 0
-                bg.BackgroundTransparency = 1
-
-                local grad = Instance.new("UIGradient", bg)
-                grad.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0,   Color3.fromRGB(76,0,130)),
-                    ColorSequenceKeypoint.new(0.3, Color3.fromRGB(138,43,226)),
-                    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(75,0,130)),
-                    ColorSequenceKeypoint.new(1,   Color3.fromRGB(148,0,211)),
-                })
-                grad.Rotation = 45
-
-                local title = Instance.new("TextLabel", bg)
-                title.Size = UDim2.fromScale(1,0.25)
-                title.Position = UDim2.fromScale(0,0.28)
-                title.BackgroundTransparency = 1
-                title.Text = "MOLTEN DASH TECH"
-                title.Font = Enum.Font.GothamBold
-                title.TextScaled = true
-                title.TextColor3 = Color3.new(1,1,1)
-                title.TextTransparency = 1
-
-                local v3Label = Instance.new("TextLabel", bg)
-                v3Label.Size = UDim2.fromScale(1,0.12)
-                v3Label.Position = UDim2.fromScale(0,0.53)
-                v3Label.BackgroundTransparency = 1
-                v3Label.Text = "V3"
-                v3Label.Font = Enum.Font.GothamBold
-                v3Label.TextScaled = true
-                v3Label.TextColor3 = Color3.fromRGB(200,100,255)
-                v3Label.TextTransparency = 1
-
-                local credit = Instance.new("TextLabel", bg)
-                credit.Size = UDim2.fromScale(1,0.07)
-                credit.Position = UDim2.fromScale(0,0.66)
-                credit.BackgroundTransparency = 1
-                credit.Text = "Made by Molten 🔥"
-                credit.Font = Enum.Font.Code
-                credit.TextScaled = true
-                credit.TextColor3 = Color3.fromRGB(180,100,255)
-                credit.TextTransparency = 1
-
-                local barBg = Instance.new("Frame", bg)
-                barBg.Size = UDim2.new(0.6,0,0,6)
-                barBg.Position = UDim2.new(0.2,0,0.8,0)
-                barBg.BackgroundColor3 = Color3.fromRGB(60,0,100)
-                barBg.BorderSizePixel = 0
-                barBg.BackgroundTransparency = 1
-                Instance.new("UICorner", barBg).CornerRadius = UDim.new(1,0)
-
-                local barFill = Instance.new("Frame", barBg)
-                barFill.Size = UDim2.fromScale(0,1)
-                barFill.BackgroundColor3 = Color3.fromRGB(180,0,255)
-                barFill.BorderSizePixel = 0
-                Instance.new("UICorner", barFill).CornerRadius = UDim.new(1,0)
-
-                local conn
-                conn = RunService.Heartbeat:Connect(function()
-                    if not splash or not splash.Parent then conn:Disconnect() return end
-                    grad.Rotation = (grad.Rotation + 0.5) % 360
-                    local hue = tick() * 0.25 % 1
-                    title.TextColor3   = Color3.fromHSV(hue, 0.4, 1)
-                    v3Label.TextColor3 = Color3.fromHSV((hue+0.3)%1, 0.6, 1)
-                    barFill.BackgroundColor3 = Color3.fromHSV((hue+0.6)%1, 1, 1)
-                    credit.TextColor3  = Color3.fromHSV((hue+0.5)%1, 0.5, 1)
-                end)
-
-                TweenService:Create(bg,    TweenInfo.new(0.4), {BackgroundTransparency=0}):Play()
-                task.wait(0.3)
-                TweenService:Create(barBg, TweenInfo.new(0.3), {BackgroundTransparency=0}):Play()
-                TweenService:Create(title, TweenInfo.new(0.6,Enum.EasingStyle.Back,Enum.EasingDirection.Out), {TextTransparency=0}):Play()
-                task.wait(0.35)
-                TweenService:Create(v3Label, TweenInfo.new(0.6,Enum.EasingStyle.Back,Enum.EasingDirection.Out), {TextTransparency=0}):Play()
-                task.wait(0.3)
-                TweenService:Create(credit, TweenInfo.new(0.4), {TextTransparency=0}):Play()
-                TweenService:Create(barFill, TweenInfo.new(2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out), {Size=UDim2.fromScale(1,1)}):Play()
-                task.wait(2)
-
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/FakeDash/refs/heads/main/Protected_5833389828844912.lua"))()
-
-                TweenService:Create(bg,      TweenInfo.new(0.6), {BackgroundTransparency=1}):Play()
-                TweenService:Create(title,   TweenInfo.new(0.6), {TextTransparency=1}):Play()
-                TweenService:Create(v3Label, TweenInfo.new(0.6), {TextTransparency=1}):Play()
-                TweenService:Create(credit,  TweenInfo.new(0.6), {TextTransparency=1}):Play()
-                TweenService:Create(barBg,   TweenInfo.new(0.6), {BackgroundTransparency=1}):Play()
-                task.wait(0.7)
-                conn:Disconnect()
-                splash:Destroy()
-            end)
-        elseif val then
-            Notify("Molten Dash", "Already loaded! 🔥", 2)
-        end
-    end,
-})
-
-MovementTab:Section({ Title = "Goto / Teleport" })
-MovementTab:Input({
-    Title       = "Target Username",
-    Placeholder = "Enter player name...",
-    Callback    = function(val) loopTargetName = val end,
-})
-MovementTab:Toggle({
-    Title    = "Loop Goto",
-    Default  = false,
-    Callback = function(val) loopGoto = val end,
-})
-
-MovementTab:Section({ Title = "Character" })
-MovementTab:Toggle({ Title = "Auto Reset", Default = false, Callback = function(val) autoReset = val end })
-MovementTab:Slider({
-    Title    = "Reset Delay (sec)",
-    Min      = 0.05, Max = 10, Default = 2, Increment = 0.05,
-    Suffix   = "s",
-    Callback = function(val) resetDelay = val end,
-})
-MovementTab:Toggle({ Title = "Death TP", Default = false, Callback = function(val) deathTP = val end })
-
--- ══════════════════════════════════════════
---  UTILITY TAB
--- ══════════════════════════════════════════
-UtilityTab:Section({ Title = "Teleports" })
-UtilityTab:Button({Title="📍 Teleport to Spot",Callback=function()
-    local char=player.Character or player.CharacterAdded:Wait()
-    local hrp=char:FindFirstChild("HumanoidRootPart")
-    if hrp then hrp.CFrame=CFrame.new(438.84,439.51,-375.48)*CFrame.Angles(0,0.69,0) end
-end})
-UtilityTab:Button({Title="📍 Teleport 2",Callback=function()
-    local char=player.Character or player.CharacterAdded:Wait()
-    local hrp=char:FindFirstChild("HumanoidRootPart")
-    if hrp then hrp.CFrame=CFrame.new(-129.75,439.51,-352.24)*CFrame.Angles(-3.14,-0.83,-3.14) end
-end})
-UtilityTab:Button({Title="📍 Teleport 3",Callback=function()
-    local char=player.Character or player.CharacterAdded:Wait()
-    local hrp=char:FindFirstChild("HumanoidRootPart")
-    if hrp then hrp.CFrame=CFrame.new(1070.00,406.00,23014.00)*CFrame.Angles(-3.14,0.12,-3.14) end
-end})
-
-UtilityTab:Section({ Title = "Scripts" })
-UtilityTab:Button({Title="🌙 Void Kill",Callback=function()
-    task.spawn(function()
-        Notify("Void Kill","Made by Molten 🔥",3)
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Reallyools/Reallyools/refs/heads/main/VoidKill2.1"))()
-    end)
-end})
-
-UtilityTab:Section({ Title = "Cosmetics" })
-UtilityTab:Button({Title="💀 Headless",Callback=function()
-    task.spawn(function()
-        Notify("Headless","Made by Molten 🔥",3)
-        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Fe-Headless-122249"))()
-    end)
-end})
-UtilityTab:Button({Title="🦴 Korblox",Callback=function()
-    task.spawn(function()
-        Notify("Korblox","Made by Molten 🔥",3)
-        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Korblox-All-136498"))()
-    end)
-end})
-
-UtilityTab:Section({ Title = "Alt Balant" })
-local function getServerPlayers()
-    local list={}
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p~=player then table.insert(list,p.Name) end
-    end
-    if #list==0 then table.insert(list,"No players found") end
-    return list
-end
-
-local altBalantDropdown = UtilityTab:Dropdown({
-    Title    = "👥 Alt Balant Player List",
-    Options  = getServerPlayers(),
-    Default  = "",
-    Callback = function(selected)
-        altBalantTarget = selected or ""
-    end,
-})
-
-UtilityTab:Button({Title="🔄 Refresh Player List",Callback=function()
-    local newList=getServerPlayers()
-    altBalantDropdown:Refresh(newList)
-    Notify("Alt Balant","Refreshed! ("..#newList.." players)",2)
-end})
-
-UtilityTab:Toggle({
-    Title    = "💥 Alt Balant",
-    Default  = false,
-    Callback = function(val)
-        altBalantActive=val
-        if val then
-            if altBalantTarget=="" or altBalantTarget=="No players found" then
-                Notify("Alt Balant","Select a target player first!",3)
-                altBalantActive=false
-                return
-            end
-            altBalantBusy=false
-            task.spawn(function()
-                while altBalantActive do
-                    if not altBalantBusy then
-                        altBalantBusy=true
-                        local char=player.Character
-                        local myHRP=char and char:FindFirstChild("HumanoidRootPart")
-                        local target=Players:FindFirstChild(altBalantTarget)
-                        local tgtHRP=target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
-                        if myHRP and tgtHRP then
-                            myHRP.CFrame=tgtHRP.CFrame*CFrame.new(0,0,-2)
-                            task.wait(2)
-                            if altBalantActive then
-                                player:LoadCharacter()
-                                player.CharacterAdded:Wait()
-                                task.wait(0.5)
-                            end
-                        else task.wait(0.5) end
-                        altBalantBusy=false
-                    end
-                    task.wait(0.1)
-                end
-            end)
-            Notify("Alt Balant","Locked onto: "..altBalantTarget.." 🔥",3)
-        else
-            altBalantBusy=false
-            Notify("Alt Balant","Disabled.",2)
-        end
-    end,
-})
-
--- ══════════════════════════════════════════
---  MISC TAB
--- ══════════════════════════════════════════
-MiscTab:Section({ Title = "Scripts" })
-local miscButtons = {
-    {"🎯 M1 Reach",           "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/M1%20Reach%20Rework"},
-    {"🔫 Aimbot",             "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Aimlock%20By%20YQANTG"},
-    {"🔒 FaceLock",           "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/Tsb/FACELOCK"},
-    {"🛡️ Block Aimlock",      "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Block%20Aimlock"},
-    {"🌀 Orbit",              "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Orbit%20by%20YQANTG"},
-    {"💨 Fake Dash (Q)",      "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Fake%20Dash%20Q"},
-    {"⚡ No Slide Dash EndLag","https://raw.githubusercontent.com/Slaphello/No-endlag-side-dash/refs/heads/main/No%20endlag%20side%20dash"},
-    {"⌨️ Keyboard",           "https://raw.githubusercontent.com/AZYsGithub/Delta-Scripts/refs/heads/main/MobileKeyboard.txt"},
-}
-for _,data in ipairs(miscButtons) do
-    local name,url=data[1],data[2]
-    MiscTab:Button({
-        Title    = name,
-        Callback = function()
-            task.spawn(function()
-                Notify(name,"Loading...",2)
-                loadstring(game:HttpGet(url))()
-            end)
-        end,
-    })
-end
-
--- ══════════════════════════════════════════
---  LOCAL TAB
--- ══════════════════════════════════════════
-LocalTab:Section({ Title = "Character" })
-
-local auraOn=false
-local auraHighlight=nil
-local auraParticles={}
-local auraColorTime=0
-local auraLoop=nil
-
-local function enableAura()
-    local char=player.Character or player.CharacterAdded:Wait()
-    local humanoid=char:WaitForChild("Humanoid")
-    local anim=Instance.new("Animation")
-    anim.AnimationId="rbxassetid://114586157428274"
-    humanoid:LoadAnimation(anim):Play()
-    auraHighlight=Instance.new("Highlight")
-    auraHighlight.Adornee=char
-    auraHighlight.FillTransparency=1
-    auraHighlight.OutlineTransparency=0
-    auraHighlight.OutlineColor=Color3.fromRGB(255,0,255)
-    auraHighlight.Parent=char
-    for _,partName in pairs({"UpperTorso","LowerTorso","HumanoidRootPart"}) do
-        local part=char:FindFirstChild(partName)
-        if part then
-            local att=Instance.new("Attachment",part)
-            local particle=Instance.new("ParticleEmitter",att)
-            particle.Name="DarkAura"
-            particle.Rate=30
-            particle.Lifetime=NumberRange.new(1.2,2)
-            particle.Speed=NumberRange.new(2,5)
-            particle.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,3),NumberSequenceKeypoint.new(1,0)})
-            particle.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(1,1)})
-            particle.Color=ColorSequence.new(Color3.fromRGB(15,15,15))
-            particle.Rotation=NumberRange.new(0,360)
-            particle.RotSpeed=NumberRange.new(-90,90)
-            particle.SpreadAngle=Vector2.new(180,180)
-            particle.ZOffset=-1
-            table.insert(auraParticles,particle)
-        end
-    end
-    auraLoop=RunService.RenderStepped:Connect(function(dt)
-        if auraOn and auraHighlight then
-            auraColorTime+=dt*0.25
-            local r=math.sin(auraColorTime)*127+128
-            local g=math.sin(auraColorTime+2)*127+128
-            local b=math.sin(auraColorTime+4)*127+128
-            auraHighlight.OutlineColor=Color3.fromRGB(r,g,b)
-        end
-    end)
-end
-
-local function disableAura()
-    if auraHighlight then auraHighlight:Destroy() auraHighlight=nil end
-    for _,p in pairs(auraParticles) do if p then p:Destroy() end end
-    auraParticles={}
-    if auraLoop then auraLoop:Disconnect() auraLoop=nil end
-end
-
-LocalTab:Toggle({Title="✨ Aura (Client)",Default=false,Callback=function(val)
-    auraOn=val
-    if val then enableAura() else disableAura() end
-end})
-
-local blockEnabled=false
-local blockConnection=nil
-local blockLoop=nil
-local targetBlockAnimId="rbxassetid://10470389827"
-
-local function enableInvisBlock()
-    local char=player.Character or player.CharacterAdded:Wait()
-    local humanoid=char:WaitForChild("Humanoid")
-    local function blockAnim(hum)
-        for _,track in ipairs(hum:GetPlayingAnimationTracks()) do
-            if track.Animation and track.Animation.AnimationId==targetBlockAnimId then
-                track:Stop() track:Destroy()
-            end
-        end
-    end
-    blockLoop=task.spawn(function()
-        while blockEnabled and humanoid and humanoid.Parent do
-            blockAnim(humanoid) task.wait(0.05)
-        end
-    end)
-    blockConnection=humanoid.AnimationPlayed:Connect(function(track)
-        if track.Animation and track.Animation.AnimationId==targetBlockAnimId then
-            track:Stop() track:Destroy()
-        end
-    end)
-end
-
-local function disableInvisBlock()
-    if blockConnection then blockConnection:Disconnect() blockConnection=nil end
-    if blockLoop then task.cancel(blockLoop) blockLoop=nil end
-end
-
-LocalTab:Toggle({Title="🫥 Invisible Block",Default=false,Callback=function(state)
-    blockEnabled=state
-    if state then
-        enableInvisBlock()
-        player.CharacterAdded:Connect(function()
-            if blockEnabled then task.wait(1) enableInvisBlock() end
-        end)
-    else disableInvisBlock() end
-end})
-
-LocalTab:Toggle({Title="🚫 No Stun",Default=false,Callback=function(val)
-    if val then
-        _G.StunBypass=RunService.RenderStepped:Connect(function()
-            local char=player.Character
-            if char then
-                if char:FindFirstChild("Stunned") then char.Stunned:Destroy() end
-                local hum=char:FindFirstChild("Humanoid")
-                if hum then hum.PlatformStand=false if hum.WalkSpeed==0 then hum.WalkSpeed=16 end end
-            end
-        end)
-    else
-        if _G.StunBypass then _G.StunBypass:Disconnect() _G.StunBypass=nil end
-    end
-end})
-
-LocalTab:Toggle({Title="🏃 No Slowed",Default=false,Callback=function(val)
-    if val then
-        _G.NoSlowLoop=RunService.RenderStepped:Connect(function()
-            local char=player.Character
-            if char then
-                local hum=char:FindFirstChild("Humanoid")
-                if hum then
-                    if hum.WalkSpeed<20 then hum.WalkSpeed=20 end
-                    hum.PlatformStand=false
-                end
-            end
-        end)
-    else
-        if _G.NoSlowLoop then _G.NoSlowLoop:Disconnect() _G.NoSlowLoop=nil end
-    end
-end})
-
-LocalTab:Toggle({Title="🚫 No Anim Ult",Default=false,Callback=function(state)
-    local blockedIds={"12447707844","12342141464","12772543293"}
-    local function isBlocked(id)
-        for _,v in pairs(blockedIds) do if id:find(v) then return true end end
-        return false
-    end
-    if _G.BlockAnimConnection then _G.BlockAnimConnection:Disconnect() _G.BlockAnimConnection=nil end
-    if state then
-        _G.BlockAnimConnection=RunService.Stepped:Connect(function()
-            local char=player.Character
-            if not char then return end
-            local hum=char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                local animator=hum:FindFirstChildOfClass("Animator")
-                if animator then
-                    for _,track in ipairs(animator:GetPlayingAnimationTracks()) do
-                        local anim=track.Animation
-                        if anim and isBlocked(anim.AnimationId) then
-                            track:Stop(0) pcall(function() track:Destroy() end)
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end})
-
-LocalTab:Toggle({Title="📷 Face Camera Y",Default=false,Callback=function(enabled)
-    if _G.FaceCamConnection then _G.FaceCamConnection:Disconnect() _G.FaceCamConnection=nil end
-    if enabled then
-        local cam=workspace.CurrentCamera
-        _G.FaceCamConnection=RunService.RenderStepped:Connect(function()
-            local char=player.Character
-            if not char then return end
-            local hrp=char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            local camLook=cam.CFrame.LookVector
-            local lookDir=Vector3.new(camLook.X,0,camLook.Z).Unit
-            hrp.CFrame=CFrame.new(hrp.Position,hrp.Position+lookDir)
-        end)
-    end
-end})
-
-LocalTab:Section({ Title = "Other" })
-LocalTab:Button({Title="🔭 Fov",Callback=function()
-    task.spawn(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Kakuwhwbbanab"))()
-    end)
-end})
-LocalTab:Toggle({Title="💨 Speed",Default=false,Callback=function(state)
-    if not _G.MyExternalGUI then
-        pcall(function()
-            _G.MyExternalGUI=loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Bbbbbbbbbskkakak"))()
-        end)
-    end
-    if typeof(_G.MyExternalGUI)=="Instance" and _G.MyExternalGUI:IsA("ScreenGui") then
-        _G.MyExternalGUI.Enabled=state
-    end
-end})
-
--- ══════════════════════════════════════════
---  ESP TAB
--- ══════════════════════════════════════════
-EspTab:Section({ Title = "Player ESP" })
-
-local espEnabled=false
-local espConnections={}
-local espLabels={}
-local function createNameESP(target)
-    if target==player then return end
-    if espLabels[target] then return end
-    local head=target:FindFirstChild("Head")
-    if not head then return end
-    local billboard=Instance.new("BillboardGui")
-    billboard.Name="NameESP"
-    billboard.Size=UDim2.new(0,100,0,20)
-    billboard.StudsOffset=Vector3.new(0,2.2,0)
-    billboard.AlwaysOnTop=true
-    billboard.Adornee=head
-    billboard.Parent=head
-    local nameLabel=Instance.new("TextLabel")
-    nameLabel.Size=UDim2.new(1,0,1,0)
-    nameLabel.BackgroundTransparency=1
-    nameLabel.Text=target.Name
-    nameLabel.TextColor3=Color3.fromRGB(100,255,255)
-    nameLabel.TextStrokeTransparency=0.4
-    nameLabel.TextScaled=true
-    nameLabel.Font=Enum.Font.GothamBold
-    nameLabel.Parent=billboard
-    espLabels[target]=billboard
-end
-local function enableESP()
-    for _,p in ipairs(Players:GetPlayers()) do if p.Character then createNameESP(p.Character) end end
-    table.insert(espConnections,Players.PlayerAdded:Connect(function(p)
-        p.CharacterAdded:Connect(function(char)
-            repeat task.wait() until char:FindFirstChild("Head")
-            createNameESP(char)
-        end)
-    end))
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p~=player then
-            table.insert(espConnections,p.CharacterAdded:Connect(function(char)
-                repeat task.wait() until char:FindFirstChild("Head")
-                createNameESP(char)
-            end))
-        end
-    end
-end
-local function disableESP()
-    for _,gui in pairs(espLabels) do if gui then gui:Destroy() end end
-    espLabels={}
-    for _,conn in ipairs(espConnections) do if conn then conn:Disconnect() end end
-    espConnections={}
-end
-EspTab:Toggle({Title="🏷️ ESP Name",Default=false,Callback=function(state)
-    espEnabled=state
-    if state then enableESP() else disableESP() end
-end})
-
-local highlightConnections={}
-local highlightList={}
-local function createHighlight(char,plr)
-    if plr==player then return end
-    if highlightList[plr] then return end
-    local hl=Instance.new("Highlight")
-    hl.Name="PlayerHighlight"
-    hl.Adornee=char
-    hl.FillTransparency=1
-    hl.OutlineTransparency=0
-    hl.OutlineColor=Color3.fromRGB(255,0,0)
-    hl.Parent=char
-    highlightList[plr]=hl
-end
-local function enableHL()
-    for _,plr in ipairs(Players:GetPlayers()) do
-        if plr.Character then createHighlight(plr.Character,plr) end
-    end
-    table.insert(highlightConnections,Players.PlayerAdded:Connect(function(p)
-        table.insert(highlightConnections,p.CharacterAdded:Connect(function(char)
-            repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
-            createHighlight(char,p)
-        end))
-    end))
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p~=player then
-            table.insert(highlightConnections,p.CharacterAdded:Connect(function(char)
-                repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
-                createHighlight(char,p)
-            end))
-        end
-    end
-end
-local function disableHL()
-    for _,hl in pairs(highlightList) do if hl then hl:Destroy() end end
-    highlightList={}
-    for _,conn in ipairs(highlightConnections) do if conn then conn:Disconnect() end end
-    highlightConnections={}
-end
-EspTab:Toggle({Title="🔴 Highlight",Default=false,Callback=function(state)
-    if state then enableHL() else disableHL() end
-end})
-
-local boxList={}
-local boxConnections={}
-local function createBox(plr)
-    if plr==player then return end
-    if boxList[plr] then return end
-    if not plr.Character then return end
-    local hrp=plr.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local box=Instance.new("BoxHandleAdornment")
-    box.Name="PurpleBox"
-    box.Adornee=hrp
-    box.AlwaysOnTop=true
-    box.ZIndex=5
-    box.Size=Vector3.new(2,2,1)
-    box.Color3=Color3.fromRGB(170,0,255)
-    box.Transparency=0.3
-    box.Parent=hrp
-    boxList[plr]=box
-end
-local function enableBoxes()
-    for _,p in pairs(Players:GetPlayers()) do if p.Character then createBox(p) end end
-    table.insert(boxConnections,Players.PlayerAdded:Connect(function(p)
-        table.insert(boxConnections,p.CharacterAdded:Connect(function(char)
-            repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
-            createBox(p)
-        end))
-    end))
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p~=player then
-            table.insert(boxConnections,p.CharacterAdded:Connect(function(char)
-                repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
-                createBox(p)
-            end))
-        end
-    end
-end
-local function disableBoxes()
-    for _,box in pairs(boxList) do if box then box:Destroy() end end
-    boxList={}
-    for _,conn in ipairs(boxConnections) do if conn then conn:Disconnect() end end
-    boxConnections={}
-end
-EspTab:Toggle({Title="🟣 Show HRP Box",Default=false,Callback=function(state)
-    if state then enableBoxes() else disableBoxes() end
-end})
-
-local guiConn=nil
-local countLabel=nil
-EspTab:Toggle({Title="🔢 Show Player Count",Default=false,Callback=function(state)
-    if state then
-        local sg=Instance.new("ScreenGui",playerGui)
-        sg.Name="PlayerCountGui"
-        sg.ResetOnSpawn=false
-        sg.IgnoreGuiInset=true
-        countLabel=Instance.new("TextLabel")
-        countLabel.Size=UDim2.new(0,220,0,50)
-        countLabel.Position=UDim2.new(0.5,-100,0,50)
-        countLabel.BackgroundTransparency=1
-        countLabel.TextColor3=Color3.fromRGB(0,255,200)
-        countLabel.TextStrokeTransparency=0.2
-        countLabel.TextScaled=true
-        countLabel.Font=Enum.Font.GothamBlack
-        countLabel.TextTransparency=1
-        countLabel.Text="Players: "..#Players:GetPlayers()
-        countLabel.Parent=sg
-        TweenService:Create(countLabel,TweenInfo.new(0.6,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{TextTransparency=0}):Play()
-        guiConn=RunService.RenderStepped:Connect(function()
-            if countLabel then countLabel.Text="Players: "..#Players:GetPlayers() end
-        end)
-    else
-        if guiConn then guiConn:Disconnect() guiConn=nil end
-        if countLabel then countLabel:Destroy() countLabel=nil end
-        local gui=playerGui:FindFirstChild("PlayerCountGui")
-        if gui then gui:Destroy() end
-    end
-end})
-
-EspTab:Section({ Title = "Character ESP" })
-local toolEspMap={
-    ["Flowing Water"]={"Garou",Color3.fromRGB(0,170,255)},
-    ["Crushed Rock"]={"Garou",Color3.fromRGB(0,170,255)},
-    ["Normal Punch"]={"Saitama",Color3.fromRGB(139,69,19)},
-    ["Serious Punch"]={"Saitama",Color3.fromRGB(139,69,19)},
-    ["Binding Cloth"]={"Monster Form",Color3.fromRGB(255,0,0)},
-    ["Beatdown"]={"Brutal Demon",Color3.fromRGB(255,255,255)},
-    ["Death Blow"]={"Brutal Demon",Color3.fromRGB(255,255,255)},
-    ["Blitz Shot"]={"Cyborg",Color3.fromRGB(255,140,0)},
-    ["Flamewave Cannon"]={"Cyborg",Color3.fromRGB(255,140,0)},
-    ["Explosive Shuriken"]={"Sonic",Color3.fromRGB(255,105,180)},
-    ["Carnage"]={"Sonic",Color3.fromRGB(255,105,180)},
-    ["Atmos Cleave"]={"Blade Master",Color3.fromRGB(255,255,0)},
-    ["Atomic Slash"]={"Blade Master",Color3.fromRGB(255,255,0)},
-    ["Crushing Pull"]={"Tatsumaki",Color3.fromRGB(0,255,0)},
-    ["Psychic Ricochet"]={"Tatsumaki",Color3.fromRGB(0,255,0)},
-    ["Bullet Barrage"]={"Martial Artist",Color3.fromRGB(128,0,128)},
-    ["Earth Splitting Strike"]={"Martial Artist",Color3.fromRGB(128,0,128)},
-}
-local espFolder=Instance.new("Folder",workspace)
-espFolder.Name="DynamicESP"
-local charEspEnabled=false
-local function getEspData(p)
-    local backpack=p:FindFirstChildOfClass("Backpack")
-    if not backpack then return "Tech Prodigy",Color3.fromRGB(200,200,200) end
-    for toolName,data in pairs(toolEspMap) do
-        if backpack:FindFirstChild(toolName) then return data[1],data[2] end
-    end
-    return "Tech Prodigy",Color3.fromRGB(200,200,200)
-end
-local function createCharESP(p,labelText,color)
-    local char=p.Character
-    if not char or not char:FindFirstChild("Head") then return end
-    if espFolder:FindFirstChild(p.Name) then return end
-    local billboard=Instance.new("BillboardGui")
-    billboard.Name=p.Name
-    billboard.Adornee=char.Head
-    billboard.Size=UDim2.new(0,100,0,20)
-    billboard.StudsOffset=Vector3.new(3.5,0.5,0)
-    billboard.AlwaysOnTop=true
-    billboard.Parent=espFolder
-    local label=Instance.new("TextLabel",billboard)
-    label.Size=UDim2.new(1,0,1,0)
-    label.BackgroundTransparency=1
-    label.Text=labelText
-    label.TextColor3=color
-    label.Font=Enum.Font.GothamBold
-    label.TextScaled=false
-    label.TextSize=12
-    label.TextStrokeTransparency=0.6
-    label.TextTransparency=0
-end
-local function clearCharESP() for _,v in ipairs(espFolder:GetChildren()) do v:Destroy() end end
-local function refreshCharESP()
-    clearCharESP()
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p~=player then
-            local lbl,col=getEspData(p)
-            createCharESP(p,lbl,col)
-        end
-    end
-end
-EspTab:Toggle({Title="🧍 Esp Character",Default=false,Callback=function(state)
-    charEspEnabled=state
-    if state then
-        refreshCharESP()
-        task.spawn(function()
-            while charEspEnabled do refreshCharESP() task.wait(2) end
-        end)
-    else clearCharESP() end
-end})
-
--- ══════════════════════════════════════════
---  DUMMY TAB
--- ══════════════════════════════════════════
-DummyTab:Section({ Title = "Dummy Tools" })
-
-local npcHighlights={}
-local npcConn={}
-local function highlightNPC(model)
-    if npcHighlights[model] then return end
-    local hl=Instance.new("Highlight")
-    hl.Adornee=model
-    hl.FillTransparency=1
-    hl.OutlineTransparency=0
-    hl.OutlineColor=Color3.fromRGB(170,0,255)
-    hl.Parent=model
-    npcHighlights[model]=hl
-end
-local function enableNPCHL()
-    local live=workspace:FindFirstChild("Live")
-    if not live then return end
-    for _,m in pairs(live:GetChildren()) do
-        if m:IsA("Model") and m.Name=="Weakest Dummy" then highlightNPC(m) end
-    end
-    table.insert(npcConn,live.ChildAdded:Connect(function(child)
-        if child:IsA("Model") and child.Name=="Weakest Dummy" then task.wait(0.2) highlightNPC(child) end
-    end))
-end
-local function disableNPCHL()
-    for _,h in pairs(npcHighlights) do if h then h:Destroy() end end
-    npcHighlights={}
-    for _,conn in pairs(npcConn) do if conn then conn:Disconnect() end end
-    npcConn={}
-end
-DummyTab:Toggle({Title="🟣 Highlight Dummy",Default=false,Callback=function(a)
-    if a then enableNPCHL() else disableNPCHL() end
-end})
-
-local npcNameTags={}
-local npcNameConn={}
-local function addNameTag(npc)
-    if npcNameTags[npc] then return end
-    local hrp=npc:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local billboard=Instance.new("BillboardGui")
-    billboard.Name="NameTag"
-    billboard.Size=UDim2.new(0,100,0,25)
-    billboard.Adornee=hrp
-    billboard.AlwaysOnTop=true
-    billboard.StudsOffset=Vector3.new(0,3.5,0)
-    billboard.Parent=npc
-    local lbl=Instance.new("TextLabel")
-    lbl.Size=UDim2.new(1,0,1,0)
-    lbl.BackgroundTransparency=1
-    lbl.Text=npc.Name
-    lbl.TextColor3=Color3.fromRGB(255,200,0)
-    lbl.TextStrokeTransparency=0.2
-    lbl.TextScaled=true
-    lbl.Font=Enum.Font.GothamBold
-    lbl.Parent=billboard
-    npcNameTags[npc]=billboard
-end
-local function enableNPCNames()
-    local live=workspace:FindFirstChild("Live")
-    if not live then return end
-    for _,npc in pairs(live:GetChildren()) do
-        if npc:IsA("Model") and npc.Name=="Weakest Dummy" then addNameTag(npc) end
-    end
-    table.insert(npcNameConn,live.ChildAdded:Connect(function(npc)
-        if npc:IsA("Model") and npc.Name=="Weakest Dummy" then task.wait(0.2) addNameTag(npc) end
-    end))
-end
-local function disableNPCNames()
-    for _,tag in pairs(npcNameTags) do if tag then tag:Destroy() end end
-    npcNameTags={}
-    for _,conn in ipairs(npcNameConn) do if conn then conn:Disconnect() end end
-    npcNameConn={}
-end
-DummyTab:Toggle({Title="🏷️ Show Name",Default=false,Callback=function(state)
-    if state then enableNPCNames() else disableNPCNames() end
-end})
-
-local orbitConn=nil
-local orbitRadius=5
-local orbitSpeed=2
-local orbitAngle=0
-local function getClosestDummy()
-    local live=workspace:FindFirstChild("Live")
-    if not live then return nil end
-    local myChar=player.Character
-    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
-    local myPos=myChar.HumanoidRootPart.Position
-    local closest,shortest=nil,math.huge
-    for _,npc in pairs(live:GetChildren()) do
-        if npc:IsA("Model") and npc.Name=="Weakest Dummy" and npc:FindFirstChild("HumanoidRootPart") then
-            local dist=(npc.HumanoidRootPart.Position-myPos).Magnitude
-            if dist<shortest then shortest=dist closest=npc end
-        end
-    end
-    return closest
-end
-DummyTab:Toggle({Title="🌀 Orbit Dummy",Default=false,Callback=function(a)
-    if a then
-        orbitAngle=0
-        orbitConn=RunService.RenderStepped:Connect(function(dt)
-            local myChar=player.Character
-            if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-            local myHRP=myChar.HumanoidRootPart
-            local npc=getClosestDummy()
-            if not npc or not npc:FindFirstChild("HumanoidRootPart") then return end
-            local center=npc.HumanoidRootPart.Position
-            orbitAngle+=dt*orbitSpeed
-            local offset=Vector3.new(math.cos(orbitAngle)*orbitRadius,0,math.sin(orbitAngle)*orbitRadius)
-            myHRP.CFrame=CFrame.new(center+offset)*(myHRP.CFrame-myHRP.Position)
-        end)
-    else
-        if orbitConn then orbitConn:Disconnect() orbitConn=nil end
-    end
-end})
-
-DummyTab:Button({Title="🌊 Tween to Dummy",Callback=function()
-    local myChar=player.Character
-    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-    local myHRP=myChar.HumanoidRootPart
-    local npc=getClosestDummy()
-    if npc and npc:FindFirstChild("HumanoidRootPart") then
-        local targetPos=npc.HumanoidRootPart.Position
-        local finalPos=Vector3.new(targetPos.X,myHRP.Position.Y,targetPos.Z)
-        local currentRot=myHRP.CFrame-myHRP.Position
-        TweenService:Create(myHRP,TweenInfo.new(0.6,Enum.EasingStyle.Sine),{CFrame=CFrame.new(finalPos)*currentRot}):Play()
-    end
-end})
-
-DummyTab:Button({Title="📍 Teleport to Dummy",Callback=function()
-    local myChar=player.Character
-    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-    local myHRP=myChar.HumanoidRootPart
-    local npc=getClosestDummy()
-    if npc and npc:FindFirstChild("HumanoidRootPart") then
-        local targetPos=npc.HumanoidRootPart.Position
-        local newPos=Vector3.new(targetPos.X,myHRP.Position.Y,targetPos.Z)
-        myHRP.CFrame=CFrame.new(newPos)*(myHRP.CFrame-myHRP.Position)
-    end
-end})
-
--- ══════════════════════════════════════════
---  TECH TAB
--- ══════════════════════════════════════════
-TechTab:Section({ Title = "Key Spam" })
-TechTab:Toggle({ Title = "Key Spam", Default = false, Callback = function(val) keySpam = val end })
-TechTab:Slider({ Title = "Spam Delay (sec)", Min = 0.02, Max = 1, Default = 0.12, Increment = 0.01, Suffix = "s", Callback = function(val) spamDelay = val end })
-
-TechTab:Section({ Title = "M1 / Punch Spam" })
-TechTab:Toggle({ Title = "M1 Spam", Default = false, Callback = function(val) m1Spam = val end })
-TechTab:Slider({ Title = "M1 Delay (sec)", Min = 0.02, Max = 1, Default = 0.1, Increment = 0.01, Suffix = "s", Callback = function(val) m1Delay = val end })
-
-TechTab:Section({ Title = "Techniques" })
-TechTab:Toggle({ Title = "⚔️ XCZ Tech (Press E)", Default = false, Callback = function(val) xczEnabled = val end })
-
-TechTab:Section({ Title = "Combat Scripts" })
-local combatButtons = {
-    {"👊 Auto Uppercut All",    "https://raw.githubusercontent.com/gamerscripter90/Jisj/main/autouppercutallcharacter.lua.txt"},
-    {"⚡ True Instant Twisted", "https://api.getpolsec.com/scripts/hosted/2c88af57351658d20eb90be4bbb187e8b6226ea564ff80131ca9fdc96a4d58eb.lua"},
-    {"💨 BOOMY LoopDash V2",    "https://api.getpolsec.com/scripts/hosted/84e2bd29cccc0f5302267e4dc952cff6816db4af36416cbd477daaa26d60863d.lua"},
-    {"🛡️🔥 Molten Auto Block",  "https://raw.githubusercontent.com/Cyborg883/CombatGUI/refs/heads/main/TSBCombatGUI"},
-    {"💧 Dripz V2",             "https://raw.githubusercontent.com/letuankiet09812345-cmyk/Testkiba/refs/heads/main/4cbcd9b905ee3e41.lua.txt"},
-    {"🗡️ Kiba Tech",            "https://raw.githubusercontent.com/Defy-cloud/Scripts/refs/heads/main/KibaTech"},
-    {"🖤🍪 Oreo Dash",          "https://raw.githubusercontent.com/letuankiet09812345-cmyk/Testkiba/refs/heads/main/Oreo%20Tech%20Script%20By%20YQANTG.txt"},
-    {"🌸 Kyoto Tech",           "https://raw.githubusercontent.com/Cyborg883/KyotoTechRework/refs/heads/main/Protected_9378660372508532.lua"},
-    {"🌀 Floater Lethal",       "https://api.jnkie.com/api/v1/luascripts/public/a23acf82fb18b827dca096e149ab0272fc74ea9bb8153cd43e44555acb943c86/download"},
-}
-for _, data in ipairs(combatButtons) do
-    local name, url = data[1], data[2]
-    TechTab:Button({
-        Title    = name,
-        Callback = function()
-            task.spawn(function()
-                Notify(name, "Made by Molten 🔥", 3)
-                loadstring(game:HttpGet(url))()
-            end)
-        end,
-    })
-end
-
-TechTab:Section({ Title = "True Perfect Loop Dash" })
-local loopDashConn = nil
-local loopDashChar = nil
-local loopDashEnabled = false
-local DASH_ANIM_ID = "rbxassetid://10479335397"
-
-local function stopLoopDash()
-    loopDashEnabled = false
-    if loopDashConn then loopDashConn:Disconnect() loopDashConn = nil end
-    if loopDashChar then loopDashChar:Disconnect() loopDashChar = nil end
-end
-
-local function setupLoopDash(char)
-    local humanoid = char:WaitForChild("Humanoid", 3)
-    local remote = char:WaitForChild("Communicate", 3)
-    if not humanoid or not remote then return end
-    local animator = humanoid:WaitForChild("Animator", 3)
-    if not animator then return end
-    if loopDashConn then loopDashConn:Disconnect() end
-    loopDashConn = animator.AnimationPlayed:Connect(function(track)
-        if not loopDashEnabled then return end
-        if track.Animation and track.Animation.AnimationId == DASH_ANIM_ID then
-            track:GetMarkerReachedSignal("End"):Connect(function()
-                if loopDashEnabled then
-                    task.wait(0.01)
-                    remote:FireServer({["Dash"] = Enum.KeyCode.W, ["Key"] = Enum.KeyCode.Q, ["Goal"] = "KeyPress"})
-                end
-            end)
-            -- fallback: re-fire after dash duration
-            task.delay(0.28, function()
-                if loopDashEnabled then
-                    remote:FireServer({["Dash"] = Enum.KeyCode.W, ["Key"] = Enum.KeyCode.Q, ["Goal"] = "KeyPress"})
-                end
-            end)
-        end
-    end)
-end
-
-TechTab:Toggle({Title = "💨 True Perfect Loop Dash", Default = false, Callback = function(state)
-    loopDashEnabled = state
-    if not state then
-        stopLoopDash()
-        Notify("Loop Dash", "Disabled", 2)
-        return
-    end
-    Notify("Loop Dash", "Enabled 💨", 2)
-    if player.Character then setupLoopDash(player.Character) end
-    if loopDashChar then loopDashChar:Disconnect() end
-    loopDashChar = player.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        if loopDashEnabled then setupLoopDash(char) end
-    end)
-end})
-
--- M4 Uppercut True Loop Dash
-local trueLoopDashEnabled = false
-local trueLoopConn = nil
-local trueLoopChar = nil
-local trueLooping = false
-
-local function setupTrueLoopDash(char)
-    local humanoid = char:WaitForChild("Humanoid", 3)
-    local remote = char:WaitForChild("Communicate", 3)
-    if not humanoid or not remote then return end
-    local animator = humanoid:WaitForChild("Animator", 3)
-    if not animator then return end
-    if trueLoopConn then trueLoopConn:Disconnect() end
-    trueLoopConn = animator.AnimationPlayed:Connect(function(track)
-        if not trueLoopDashEnabled then return end
-        if track.Animation and track.Animation.AnimationId == "rbxassetid://10503381238" then
-            if trueLooping then return end
-            task.delay(0.25, function()
-                if not trueLoopDashEnabled then return end
-                trueLooping = true
-                while trueLoopDashEnabled do
-                    remote:FireServer({["Dash"] = Enum.KeyCode.W, ["Key"] = Enum.KeyCode.Q, ["Goal"] = "KeyPress"})
-                    remote:FireServer({["Mobile"] = true, ["Goal"] = "LeftClick"})
-                    remote:FireServer({["Goal"] = "LeftClickRelease", ["Mobile"] = true})
-                    task.wait(0.28)
-                end
-                trueLooping = false
-            end)
-        end
-    end)
-end
-
-TechTab:Toggle({Title = "💨 True Loop Dash (M4 Trigger)", Default = false, Callback = function(state)
-    trueLoopDashEnabled = state
-    trueLooping = false
-    if not state then
-        if trueLoopConn then trueLoopConn:Disconnect() trueLoopConn = nil end
-        if trueLoopChar then trueLoopChar:Disconnect() trueLoopChar = nil end
-        Notify("True Loop Dash", "Disabled", 2)
-        return
-    end
-    Notify("True Loop Dash", "Do M1 x3 + Uppercut! 💨", 3)
-    if player.Character then setupTrueLoopDash(player.Character) end
-    if trueLoopChar then trueLoopChar:Disconnect() end
-    trueLoopChar = player.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        if trueLoopDashEnabled then setupTrueLoopDash(char) end
-    end)
-end})
-
-TechTab:Button({Title = "📱 Mobile: Fire Loop Dash", Callback = function()
-    local char = player.Character
-    local remote = char and char:FindFirstChild("Communicate")
-    if not remote then Notify("Error", "No remote found!", 2) return end
-    task.spawn(function()
-        Notify("Mobile Loop Dash", "Running! Toggle off to stop 💨", 3)
-        trueLoopDashEnabled = true
-        trueLooping = true
-        while trueLoopDashEnabled do
-            remote:FireServer({["Dash"] = Enum.KeyCode.W, ["Key"] = Enum.KeyCode.Q, ["Goal"] = "KeyPress"})
-            remote:FireServer({["Mobile"] = true, ["Goal"] = "LeftClick"})
-            remote:FireServer({["Goal"] = "LeftClickRelease", ["Mobile"] = true})
-            task.wait(0.28)
-        end
-        trueLooping = false
-    end)
-end})
-
-TechTab:Section({ Title = "Tech Scripts" })
-local techButtons={
-    {"🔄 M1 Reset",      "https://raw.githubusercontent.com/Slaphello/M1-Reset-And-Emote-Dash-TSB-OLD-/refs/heads/main/M1R%26ED%20TSB"},
-    {"🌸 Auto Kyoto",    "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Auto%20kyoto%20ma%20hoa"},
-    {"🔁 Loop Dash",     "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Loop%20Dash%20Rework%20Script%20Real"},
-    {"💀 Lethal Dash",   "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Lethal%20Dash%20Script"},
-    {"🍪 Oreo Dash",     "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Oreo%20Tech%20Script"},
-    {"🌪️ Tornado Dash",  "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Idk%20lolololol"},
-    {"⚡ Supa Dash",     "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Supa%20tech%20script"},
-    {"↩️ BackDash (MB)", "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/BackDash%20Tech"},
-    {"↩️ BackDash (PC)", "https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/BackDash%20For%20Pc"},
-}
-for _,data in ipairs(techButtons) do
-    local name,url=data[1],data[2]
-    TechTab:Button({
-        Title    = name,
-        Callback = function()
-            task.spawn(function()
-                Notify(name,"Loading...",2)
-                loadstring(game:HttpGet(url))()
-            end)
-        end,
-    })
-end
-
--- ══════════════════════════════════════════
---  AUTO TAB
--- ══════════════════════════════════════════
-AutoTab:Section({ Title = "Auto Features" })
-
-local autoTwistedConn=nil
-local autoTwistedChar=nil
-AutoTab:Toggle({Title="⚡ Auto Twisted",Default=false,Callback=function(enabled)
-    local function bindAnimDetect()
-        local char=player.Character or player.CharacterAdded:Wait()
-        local humanoid=char:WaitForChild("Humanoid")
-        local cooldown=false
-        local function stepBack()
-            local hrp=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then hrp.CFrame=hrp.CFrame*CFrame.new(0,0,3) end
-        end
-        local function useRemote()
-            local c=player.Character
-            if c and c:FindFirstChild("Communicate") then
-                c.Communicate:FireServer({["Dash"]=Enum.KeyCode.W,["Key"]=Enum.KeyCode.Q,["Goal"]="KeyPress"})
-            end
-        end
-        autoTwistedConn=humanoid.AnimationPlayed:Connect(function(track)
-            if track.Animation and track.Animation.AnimationId=="rbxassetid://13294471966" and not cooldown then
-                cooldown=true
-                task.delay(0.23,function() stepBack() useRemote() end)
-                task.delay(5,function() cooldown=false end)
-            end
-        end)
-    end
-    if enabled then
-        bindAnimDetect()
-        autoTwistedChar=player.CharacterAdded:Connect(function() task.wait(1) bindAnimDetect() end)
-    else
-        if autoTwistedConn then autoTwistedConn:Disconnect() autoTwistedConn=nil end
-        if autoTwistedChar then autoTwistedChar:Disconnect() autoTwistedChar=nil end
-    end
-end})
-
-local instantTwistedConn=nil
-local instantTwistedChar=nil
-AutoTab:Toggle({Title="🌀 Instant Twisted",Default=false,Callback=function(enabled)
-    local cam=workspace.CurrentCamera
-    local debounce=false
-    local function swipeAndDash()
-        local args={{["Dash"]=Enum.KeyCode.W,["Key"]=Enum.KeyCode.Q,["Goal"]="KeyPress"}}
-        local char=player.Character
-        if char and char:FindFirstChild("Communicate") then char.Communicate:FireServer(unpack(args)) end
-        local startCFrame=cam.CFrame
-        local leftCFrame=startCFrame*CFrame.Angles(40,math.rad(-90),180)
-        cam.CameraType=Enum.CameraType.Scriptable
-        local t1=TweenService:Create(cam,TweenInfo.new(0.1,Enum.EasingStyle.Sine),{CFrame=leftCFrame})
-        t1:Play() t1.Completed:Wait()
-        task.wait(0.00001)
-        local t2=TweenService:Create(cam,TweenInfo.new(0.001,Enum.EasingStyle.Sine),{CFrame=startCFrame})
-        t2:Play() t2.Completed:Wait()
-        task.wait(0.1)
-        local t3=TweenService:Create(cam,TweenInfo.new(0.0001,Enum.EasingStyle.Sine),{CFrame=startCFrame*CFrame.Angles(math.rad(-6),math.rad(20),0)})
-        t3:Play() t3.Completed:Wait()
-        cam.CameraType=Enum.CameraType.Custom
-    end
-    local function bindAnimator(animator)
-        instantTwistedConn=animator.AnimationPlayed:Connect(function(track)
-            if track.Animation and track.Animation.AnimationId=="rbxassetid://13294471966" and not debounce then
-                debounce=true
-                local char=player.Character
-                local hrp=char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then hrp.CFrame=hrp.CFrame+hrp.CFrame.LookVector*-1 end
-                task.delay(0.25,function() swipeAndDash() task.wait(5) debounce=false end)
-            end
-        end)
-    end
-    local function monitorChar()
-        local char=player.Character or player.CharacterAdded:Wait()
-        local humanoid=char:WaitForChild("Humanoid")
-        local animator=humanoid:FindFirstChildOfClass("Animator")
-        if animator then bindAnimator(animator)
-        else humanoid.ChildAdded:Connect(function(child) if child:IsA("Animator") then bindAnimator(child) end end) end
-    end
-    if enabled then
-        monitorChar()
-        instantTwistedChar=player.CharacterAdded:Connect(monitorChar)
-    else
-        if instantTwistedConn then instantTwistedConn:Disconnect() instantTwistedConn=nil end
-        if instantTwistedChar then instantTwistedChar:Disconnect() instantTwistedChar=nil end
-    end
-end})
-
-local autoSupaConn=nil
-local autoSupaChar=nil
-AutoTab:Toggle({Title="⚡ Auto Supa",Default=false,Callback=function(state)
-    local rotating=false
-    local function bindHumanoid(humanoid)
-        autoSupaConn=humanoid.AnimationPlayed:Connect(function(track)
-            if track.Animation and track.Animation.AnimationId=="rbxassetid://12296113986" and not rotating then
-                rotating=true
-                local char=player.Character
-                local humanoid2=char and char:FindFirstChild("Humanoid")
-                if humanoid2 then humanoid2.Jump=true end
-                task.delay(2,function()
-                    local c=player.Character
-                    local remote=c and c:FindFirstChild("Communicate")
-                    if remote then remote:FireServer({["Dash"]=Enum.KeyCode.W,["Key"]=Enum.KeyCode.Q,["Goal"]="KeyPress"}) end
-                    task.delay(0.26,function()
-                        local c2=player.Character
-                        local root=c2 and c2:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            local lookVector=-root.CFrame.LookVector
-                            root.CFrame=CFrame.lookAt(root.CFrame.Position,root.CFrame.Position+lookVector)
-                        end
-                        if humanoid2 then humanoid2.Jump=false end
-                        rotating=false
-                    end)
-                end)
-            end
-        end)
-    end
-    local function setup()
-        local char=player.Character or player.CharacterAdded:Wait()
-        local humanoid=char:WaitForChild("Humanoid")
-        bindHumanoid(humanoid)
-    end
-    if state then
-        setup()
-        autoSupaChar=player.CharacterAdded:Connect(setup)
-    else
-        if autoSupaConn then autoSupaConn:Disconnect() autoSupaConn=nil end
-        if autoSupaChar then autoSupaChar:Disconnect() autoSupaChar=nil end
-    end
-end})
-
-local slideM1Conn=nil
-local slideM1Char=nil
-local slideTargetIDs={}
-slideTargetIDs["10480796021"]=true
-slideTargetIDs["10480793962"]=true
-AutoTab:Toggle({Title="🛹 Slide + M1",Default=false,Callback=function(state)
-    if not state then
-        if slideM1Conn then slideM1Conn:Disconnect() slideM1Conn=nil end
-        if slideM1Char then slideM1Char:Disconnect() slideM1Char=nil end
-        return
-    end
-    local function setup(char)
-        local humanoid=char:WaitForChild("Humanoid",3)
-        local animator=humanoid and humanoid:FindFirstChildOfClass("Animator")
-        local remote=char:FindFirstChild("Communicate")
-        if not humanoid or not animator or not remote then return end
-        local cooldown=false
-        if slideM1Conn then slideM1Conn:Disconnect() end
-        slideM1Conn=animator.AnimationPlayed:Connect(function(track)
-            local id=track.Animation.AnimationId:match("%d+")
-            if id and slideTargetIDs[id] and not cooldown then
-                cooldown=true
-                remote:FireServer({["Mobile"]=true,["Goal"]="LeftClick"})
-                remote:FireServer({["Goal"]="LeftClickRelease",["Mobile"]=true})
-                task.delay(1.5,function() cooldown=false end)
-            end
-        end)
-    end
-    if player.Character then setup(player.Character) end
-    if slideM1Char then slideM1Char:Disconnect() end
-    slideM1Char=player.CharacterAdded:Connect(function(char) task.wait(1) if state then setup(char) end end)
-end})
-
-local autoSurfConn=nil
-local autoSurfActive=false
-AutoTab:Toggle({Title="🏄 Auto Surf",Default=false,Callback=function(state)
-    autoSurfActive=state
-    if not state then
-        if autoSurfConn then autoSurfConn:Disconnect() autoSurfConn=nil end
-        return
-    end
-    local isTweening=false
-    local TARGET_ANIM="rbxassetid://12309835105"
-    local function isTargetAnimPlaying()
-        local char=player.Character
-        local humanoid=char and char:FindFirstChildOfClass("Humanoid")
-        if not humanoid then return false end
-        for _,track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-            if track.Animation and track.Animation.AnimationId==TARGET_ANIM then return true end
-        end
-        return false
-    end
-    RunService.RenderStepped:Connect(function()
-        if not autoSurfActive or isTweening then return end
-        if isTargetAnimPlaying() then
-            isTweening=true
-            task.wait(0.6)
-            local char=player.Character
-            local root=char and char:FindFirstChild("HumanoidRootPart")
-            if root then
-                local forward=root.CFrame.LookVector.Unit
-                local targetCF=root.CFrame+(forward*50)
-                local tween=TweenService:Create(root,TweenInfo.new(0.78,Enum.EasingStyle.Linear),{CFrame=targetCF})
-                tween:Play() tween.Completed:Wait()
-            end
-            task.wait(1.5)
-            isTweening=false
-        end
-    end)
-end})
-
-local downSlamEnabled=false
-AutoTab:Toggle({Title="⬇️ Auto DownSlam",Default=false,Callback=function(state)
-    downSlamEnabled=state
-end})
-
-local downSlamValidIDs={
-    ["rbxassetid://10469639222"]=true,["rbxassetid://13532604085"]=true,
-    ["rbxassetid://13295919399"]=true,["rbxassetid://13378751717"]=true,
-    ["rbxassetid://14001963401"]=true,["rbxassetid://15240176873"]=true,
-    ["rbxassetid://16515448089"]=true,["rbxassetid://17889471098"]=true,
-    ["rbxassetid://104895379416342"]=true,
-}
-local function isNearTarget(hrp)
-    for _,model in ipairs(workspace.Live and workspace.Live:GetChildren() or {}) do
-        if model:IsA("Model") and model~=player.Character then
-            local root=model:FindFirstChild("HumanoidRootPart")
-            if root and (root.Position-hrp.Position).Magnitude<=15 then
-                if Players:GetPlayerFromCharacter(model) or model.Name=="Weakest Dummy" then return true end
-            end
-        end
-    end
-    return false
-end
-local function setupDownSlam(char)
-    local humanoid=char:WaitForChild("Humanoid")
-    local hrp=char:WaitForChild("HumanoidRootPart")
-    humanoid.AnimationPlayed:Connect(function(track)
-        if downSlamEnabled and track.Animation and downSlamValidIDs[track.Animation.AnimationId] then
-            if not isNearTarget(hrp) then return end
-            local tween=TweenService:Create(hrp,TweenInfo.new(0.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{CFrame=hrp.CFrame+Vector3.new(0,6,0)})
-            tween:Play()
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-end
-player.CharacterAdded:Connect(setupDownSlam)
-if player.Character then setupDownSlam(player.Character) end
-
-local flowGraspConn=nil
-AutoTab:Toggle({Title="🌊 Flowing + Grasp",Default=false,Callback=function(enabled)
-    if flowGraspConn then flowGraspConn:Disconnect() flowGraspConn=nil end
-    if not enabled then return end
-    local isTweening=false
-    local lastPlaying=false
-    flowGraspConn=RunService.RenderStepped:Connect(function()
-        local char=player.Character
-        local humanoid=char and char:FindFirstChild("Humanoid")
-        local hrp=char and char:FindFirstChild("HumanoidRootPart")
-        if not humanoid or not hrp then return end
-        local isPlaying=false
-        for _,track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-            if track.Animation and track.Animation.AnimationId=="rbxassetid://12273188754" then isPlaying=true break end
-        end
-        if isPlaying and not isTweening and not lastPlaying then
-            isTweening=true lastPlaying=true
-            task.delay(1.8,function()
-                local fwdCF=hrp.CFrame+hrp.CFrame.LookVector*24
-                local tween=TweenService:Create(hrp,TweenInfo.new(0.1,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{CFrame=fwdCF})
-                tween:Play() tween.Completed:Wait()
-                local tool=player.Backpack:FindFirstChild("Hunter's Grasp")
-                local remote=char and char:FindFirstChild("Communicate")
-                if tool and remote then remote:FireServer({["Tool"]=tool,["Goal"]="Console Move"}) end
-                isTweening=false
-            end)
-        elseif not isPlaying then lastPlaying=false end
-    end)
-end})
-
-local upperGraspConn=nil
-AutoTab:Toggle({Title="👊 Upper + Grasp",Default=false,Callback=function(enabled)
-    if upperGraspConn then upperGraspConn:Disconnect() upperGraspConn=nil end
-    if not enabled then return end
-    local isTweening=false
-    local lastPlaying=false
-    local cooldown=false
-    upperGraspConn=RunService.RenderStepped:Connect(function()
-        local character=player.Character
-        local hrp=character and character:FindFirstChild("HumanoidRootPart")
-        local humanoid=character and character:FindFirstChild("Humanoid")
-        if not character or not hrp or not humanoid then return end
-        local isPlaying=false
-        for _,track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-            if track.Animation and track.Animation.AnimationId=="rbxassetid://10503381238" then isPlaying=true break end
-        end
-        if isPlaying and not isTweening and not lastPlaying and not cooldown then
-            isTweening=true lastPlaying=true cooldown=true
-            task.delay(0.18,function()
-                local target=nil
-                local shortest=7
-                local live=workspace:FindFirstChild("Live")
-                if live then
-                    for _,model in ipairs(live:GetChildren()) do
-                        if model:IsA("Model") and model~=character then
-                            local torso=model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso")
-                            if torso then
-                                local dist=(hrp.Position-torso.Position).Magnitude
-                                if dist<=shortest then shortest=dist target=torso end
-                            end
-                        end
-                    end
-                end
-                if target then
-                    local targetPos=target.Position+Vector3.new(0,8,0)
-                    TweenService:Create(hrp,TweenInfo.new(0.1,Enum.EasingStyle.Linear),{CFrame=CFrame.new(targetPos)}):Play()
-                end
-                local tool=player.Backpack:FindFirstChild("Hunter's Grasp")
-                local remote=character and character:FindFirstChild("Communicate")
-                if tool and remote then remote:FireServer({["Tool"]=tool,["Goal"]="Console Move"}) end
-                isTweening=false
-                task.delay(15,function() cooldown=false end)
-            end)
-        elseif not isPlaying then lastPlaying=false end
-    end)
-end})
-
-AutoTab:Toggle({Title="🌪️ Whirlwind Dunk",Default=false,Callback=function(isEnabled)
-    if _G.TeleportAnimConnection then _G.TeleportAnimConnection:Disconnect() _G.TeleportAnimConnection=nil end
-    if isEnabled then
-        local isTeleporting=false
-        local lastTrack=nil
-        _G.TeleportAnimConnection=RunService.RenderStepped:Connect(function()
-            local character=player.Character
-            if not character or isTeleporting then return end
-            local humanoid=character:FindFirstChildWhichIsA("Humanoid")
-            local root=character:FindFirstChild("HumanoidRootPart")
-            if not humanoid or not root then return end
-            for _,track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-                if track.Animation and track.Animation.AnimationId=="rbxassetid://12296113986" then
-                    if lastTrack==track then return end
-                    lastTrack=track
-                    isTeleporting=true
-                    task.delay(1,function()
-                        if root and root.Parent then root.CFrame=root.CFrame+Vector3.new(0,70,0) end
-                        isTeleporting=false
-                    end)
-                    break
-                end
-            end
-            if lastTrack and not lastTrack.IsPlaying then lastTrack=nil end
-        end)
-    end
-end})
-
-local kibaTechConn=nil
-local kibaTechEnabled=false
-AutoTab:Toggle({Title="⚔️ KIBA Tech",Default=false,Callback=function(state)
-    kibaTechEnabled=state
-    local animationIds={["rbxassetid://10503381238"]=true,["rbxassetid://13379003796"]=true}
-    local TWEEN_HEIGHT=Vector3.new(0,5,0)
-    local function setupChar(character)
-        if kibaTechConn then kibaTechConn:Disconnect() end
-        if not kibaTechEnabled then return end
-        local isTweening=false
-        local lastPlaying=false
-        local cooldown=false
-        kibaTechConn=RunService.RenderStepped:Connect(function()
-            local hrp=character:FindFirstChild("HumanoidRootPart")
-            local humanoid=character:FindFirstChild("Humanoid")
-            if not character or not hrp or not humanoid then return end
-            local isPlaying=false
-            for _,track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-                if track.Animation and animationIds[track.Animation.AnimationId] then isPlaying=true break end
-            end
-            if isPlaying and not isTweening and not lastPlaying and not cooldown then
-                isTweening=true lastPlaying=true cooldown=true
-                task.delay(0.18,function()
-                    local target=nil
-                    local shortest=15
-                    local live=workspace:FindFirstChild("Live")
-                    if live then
-                        for _,model in ipairs(live:GetChildren()) do
-                            if model:IsA("Model") and model~=character then
-                                local root=model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head") or model:FindFirstChild("UpperTorso")
-                                if root then
-                                    local dist=(hrp.Position-root.Position).Magnitude
-                                    if dist<shortest then shortest=dist target=model end
-                                end
-                            end
-                        end
-                    end
-                    if target and target:FindFirstChild("HumanoidRootPart") then
-                        local targetPos=target.HumanoidRootPart.Position+TWEEN_HEIGHT
-                        TweenService:Create(hrp,TweenInfo.new(0.1,Enum.EasingStyle.Linear),{CFrame=CFrame.new(targetPos)}):Play()
-                        local remote=character:FindFirstChild("Communicate")
-                        if remote then remote:FireServer({["Dash"]=Enum.KeyCode.W,["Key"]=Enum.KeyCode.Q,["Goal"]="KeyPress"}) end
-                    end
-                    isTweening=false
-                    task.delay(4,function() cooldown=false end)
-                end)
-            elseif not isPlaying then lastPlaying=false end
-        end)
-    end
-    if state and player.Character then setupChar(player.Character) end
-    player.CharacterAdded:Connect(function(char) if kibaTechEnabled then setupChar(char) end end)
-end})
-
--- ══════════════════════════════════════════
---  SERVER TAB
--- ══════════════════════════════════════════
-ServerTab:Section({ Title = "Server Tools" })
-ServerTab:Button({Title="⚡ Anti Lag",Callback=function()
-    task.spawn(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Antilag%20script"))()
-    end)
-end})
-
-ServerTab:Button({Title="🔄 Rejoin",Callback=function()
-    local TeleportService=game:GetService("TeleportService")
-    local sg=Instance.new("ScreenGui",playerGui)
-    sg.Name="RejoinGui"
-    local lbl=Instance.new("TextLabel",sg)
-    lbl.Size=UDim2.new(0.3,0,0.2,0)
-    lbl.Position=UDim2.new(0.35,0,0.4,0)
-    lbl.TextScaled=true
-    lbl.BackgroundTransparency=1
-    lbl.TextColor3=Color3.new(1,1,1)
-    lbl.Font=Enum.Font.GothamBold
-    for i=5,1,-1 do lbl.Text="Rejoining in "..i.."..." task.wait(1) end
-    sg:Destroy()
-    TeleportService:TeleportToPlaceInstance(game.PlaceId,game.JobId,player)
-end})
-
-ServerTab:Button({Title="🌐 Server Hop",Callback=function()
-    local TeleportService=game:GetService("TeleportService")
-    local HttpService=game:GetService("HttpService")
-    local placeId=game.PlaceId
-    local sg=Instance.new("ScreenGui",playerGui)
-    local lbl=Instance.new("TextLabel",sg)
-    lbl.Size=UDim2.new(0.3,0,0.2,0)
-    lbl.Position=UDim2.new(0.35,0,0.4,0)
-    lbl.TextScaled=true lbl.BackgroundTransparency=1
-    lbl.TextColor3=Color3.new(1,1,1) lbl.Font=Enum.Font.GothamBold
-    for i=5,1,-1 do lbl.Text="Hopping in "..i.."..." task.wait(1) end
-    sg:Destroy()
-    local servers={}
-    pcall(function()
-        local data=HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
-        if data and data.data then
-            for _,s in pairs(data.data) do
-                if s.playing<s.maxPlayers and s.id~=game.JobId then table.insert(servers,s.id) end
-            end
-        end
-    end)
-    if #servers>0 then TeleportService:TeleportToPlaceInstance(placeId,servers[math.random(1,#servers)],player) end
-end})
-
-ServerTab:Button({Title="👥 Small Server",Callback=function()
-    local TeleportService=game:GetService("TeleportService")
-    local HttpService=game:GetService("HttpService")
-    local placeId=game.PlaceId
-    local sg=Instance.new("ScreenGui",playerGui)
-    local lbl=Instance.new("TextLabel",sg)
-    lbl.Size=UDim2.new(0.3,0,0.2,0)
-    lbl.Position=UDim2.new(0.35,0,0.4,0)
-    lbl.TextScaled=true lbl.BackgroundTransparency=1
-    lbl.TextColor3=Color3.new(1,1,1) lbl.Font=Enum.Font.GothamBold
-    for i=5,1,-1 do lbl.Text="Finding small server in "..i.."..." task.wait(1) end
-    sg:Destroy()
-    local servers={}
-    local cursor=""
-    for i=1,5 do
-        local url="https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"
-        if cursor~="" then url=url.."&cursor="..cursor end
-        local ok,resp=pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
-        if ok and resp and resp.data then
-            for _,s in pairs(resp.data) do
-                if s.playing<5 and s.id~=game.JobId then table.insert(servers,s.id) end
-            end
-            cursor=resp.nextPageCursor or ""
-            if cursor=="" then break end
-        else break end
-    end
-    if #servers>0 then TeleportService:TeleportToPlaceInstance(placeId,servers[math.random(1,#servers)],player) end
-end})
-
-ServerTab:Button({Title="📊 Check Ping",Callback=function()
-    local sg=Instance.new("ScreenGui",playerGui)
-    sg.Name="PingDisplay" sg.ResetOnSpawn=false
-    local lbl=Instance.new("TextLabel",sg)
-    lbl.Size=UDim2.new(0,150,0,40)
-    lbl.Position=UDim2.new(1,-160,0,10)
-    lbl.BackgroundTransparency=0.4
-    lbl.BackgroundColor3=Color3.fromRGB(0,0,0)
-    lbl.TextColor3=Color3.new(1,1,1)
-    lbl.Font=Enum.Font.GothamBold
-    lbl.TextSize=20
-    lbl.Text="PING: -- ms"
-    task.spawn(function()
-        while lbl and lbl.Parent do
-            local ping=math.floor(player:GetNetworkPing()*1000)
-            lbl.Text="PING: "..ping.." ms"
-            if ping<=80 then lbl.TextColor3=Color3.fromRGB(0,255,0)
-            elseif ping<=150 then lbl.TextColor3=Color3.fromRGB(255,170,0)
-            else lbl.TextColor3=Color3.fromRGB(255,0,0) end
-            task.wait(1)
-        end
-    end)
-end})
-
-ServerTab:Toggle({Title="🚫 Anti Kick",Default=false,Callback=function(state)
-    if state then
-        pcall(function()
-            local mt=getrawmetatable(game)
-            local oldNamecall=mt.__namecall
-            setreadonly(mt,false)
-            mt.__namecall=newcclosure(function(self,...)
-                if getnamecallmethod()=="Kick" and self==player then return nil end
-                return oldNamecall(self,...)
-            end)
-            player.Kick=function() return nil end
-            setreadonly(mt,true)
-        end)
-    end
-end})
-
--- ══════════════════════════════════════════
---  AUTO BLOCK TAB
--- ══════════════════════════════════════════
-AutoBlockTab:Section({ Title = "Auto Block Scripts" })
-AutoBlockTab:Button({Title="🛡️ Notpaki Block",Callback=function()
-    task.spawn(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/TSB/refs/heads/main/CombatGui"))()
-    end)
-end})
-AutoBlockTab:Button({Title="🛡️ YQANTG Block",Callback=function()
-    task.spawn(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/YQANTG%20AUTO%20BLOCK%20(1).txt"))()
-    end)
-end})
-
--- ══════════════════════════════════════════
---  ADMIN TAB
--- ══════════════════════════════════════════
-AdminTab:Section({ Title = "Admin Scripts" })
-AdminTab:Button({Title="♾️ Infinite Yield",Callback=function()
-    task.spawn(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
-    end)
-end})
-AdminTab:Button({Title="👑 Nameless Admin",Callback=function()
-    task.spawn(function()
-        loadstring(game:HttpGet("https://github.com/FilteringEnabled/NamelessAdmin/blob/main/Source?raw=true"))()
-    end)
-end})
-
--- ══════════════════════════════════════════
---  XCZ FUNCTION
--- ══════════════════════════════════════════
-local function doXCZ()
-    if xczCooldown then return end
-    xczCooldown=true
-    local char=player.Character
-    if not char then xczCooldown=false return end
-    local hrp=char:FindFirstChild("HumanoidRootPart")
-    if not hrp then xczCooldown=false return end
-    VirtualInputManager:SendKeyEvent(true,Enum.KeyCode.Four,false,game) task.wait(0.05)
-    VirtualInputManager:SendKeyEvent(false,Enum.KeyCode.Four,false,game) task.wait(0.1)
-    VirtualInputManager:SendKeyEvent(true,Enum.KeyCode.W,false,game) task.wait(0.01)
-    VirtualInputManager:SendKeyEvent(true,Enum.KeyCode.Q,false,game) task.wait(0.03)
-    VirtualInputManager:SendKeyEvent(false,Enum.KeyCode.Q,false,game) task.wait(0.04)
-    hrp.CFrame=hrp.CFrame*CFrame.Angles(0,math.pi,0) task.wait(0.03)
-    VirtualInputManager:SendKeyEvent(false,Enum.KeyCode.W,false,game) task.wait(0.05)
-    VirtualInputManager:SendKeyEvent(true,Enum.KeyCode.One,false,game) task.wait(0.02)
-    VirtualInputManager:SendKeyEvent(false,Enum.KeyCode.One,false,game) task.wait(0.5)
-    xczCooldown=false
-end
-
-UserInputService.InputBegan:Connect(function(input,gp)
-    if gp then return end
-    if input.KeyCode==Enum.KeyCode.E and xczEnabled then task.spawn(doXCZ) end
+lp.CharacterAdded:Connect(function(newChar)
+	char = newChar
+	hrp = newChar:WaitForChild("HumanoidRootPart")
+	hum = newChar:FindFirstChildOfClass("Humanoid")
 end)
 
--- ══════════════════════════════════════════
---  M1 SPAM LOOP
--- ══════════════════════════════════════════
-task.spawn(function()
-    local punchCount=0
-    while true do
-        if m1Spam then
-            local char=player.Character
-            if char then
-                local screenSize=workspace.CurrentCamera.ViewportSize
-                local punchX=screenSize.X*0.93
-                local punchY=screenSize.Y*0.50
-                VirtualInputManager:SendMouseButtonEvent(punchX,punchY,0,true,game,1) task.wait(0.05)
-                VirtualInputManager:SendMouseButtonEvent(punchX,punchY,0,false,game,1)
-                VirtualInputManager:SendKeyEvent(true,Enum.KeyCode.One,false,game) task.wait(0.02)
-                VirtualInputManager:SendKeyEvent(false,Enum.KeyCode.One,false,game)
-                punchCount+=1
-                if xczEnabled and not xczCooldown and punchCount>=4 then
-                    punchCount=0 task.spawn(doXCZ)
-                end
-            end
-            task.wait(m1Delay)
-        else punchCount=0 task.wait(0.05) end
-    end
-end)
+local animIds = {
+	[10449761463] = {Left = 10480796021, Right = 10480793962, Straight = 10479335397},
+	[13076380114] = {Left = 101843860692381, Right = 100087324592640, Straight = 110878031211717},
+}
 
--- ══════════════════════════════════════════
---  LOOP GOTO HEARTBEAT
--- ══════════════════════════════════════════
-RunService.Heartbeat:Connect(function()
-    if loopGoto and loopTargetName~="" then
-        local target=Players:FindFirstChild(loopTargetName)
-        if target and target.Character then
-            local targetHRP=target.Character:FindFirstChild("HumanoidRootPart")
-            local myHRP=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if targetHRP and myHRP then myHRP.CFrame=targetHRP.CFrame*CFrame.new(0,0,-2) end
-        end
-    end
-end)
+local gameAnims = animIds[game.PlaceId] or animIds[13076380114]
+local leftId, rightId, straightId = gameAnims.Left, gameAnims.Right, gameAnims.Straight
 
--- ══════════════════════════════════════════
---  KEY SPAM LOOP
--- ══════════════════════════════════════════
-task.spawn(function()
-    while true do
-        if keySpam then
-            local keys={Enum.KeyCode.One,Enum.KeyCode.Two,Enum.KeyCode.Three,Enum.KeyCode.Four}
-            for _,k in ipairs(keys) do
-                if not keySpam then break end
-                VirtualInputManager:SendKeyEvent(true,k,false,game) task.wait(0.02)
-                VirtualInputManager:SendKeyEvent(false,k,false,game) task.wait(spamDelay)
-            end
-        else task.wait(0.05) end
-    end
-end)
+local dashRange = 40
+local minDist = 4
+local maxDist = 5
+local minGap = 1.2
+local maxGap = 60
+local targetDist = 15
+local straightSpeed = 120
+local velPredict = 0.5
+local aspect = 390 / 480
+local btnImage = "rbxassetid://5852470908"
+local dashSfxId = "rbxassetid://72014632956520"
+local isDashing = false
+local sideAnim = nil
+local lastDash = -math.huge
+local dashSfx = Instance.new("Sound")
+dashSfx.Name = "DashSFX"
+dashSfx.SoundId = dashSfxId
+dashSfx.Volume = 2
+dashSfx.Looped = false
+dashSfx.Parent = ws
 
--- ══════════════════════════════════════════
---  CHARACTER SETUP
--- ══════════════════════════════════════════
-local function setupChar(char)
-    if not char then return end
-    local hum=char:WaitForChild("Humanoid")
-    local hrp=char:WaitForChild("HumanoidRootPart")
-    if deathTP and lastDeathCFrame then task.wait(0.15) hrp.CFrame=lastDeathCFrame end
-    hum.Died:Connect(function()
-        lastDeathCFrame=hrp.CFrame
-        if autoReset then task.wait(resetDelay) player:LoadCharacter() end
-    end)
+local autoRotateHook = nil
+local shouldDisableRot = false
+
+local function hookAutoRotate()
+	if autoRotateHook then
+		pcall(function() autoRotateHook:Disconnect() end)
+		autoRotateHook = nil
+	end
+	local h = char and char:FindFirstChildOfClass("Humanoid")
+	if not h then return end
+	autoRotateHook = h:GetPropertyChangedSignal("AutoRotate"):Connect(function()
+		if shouldDisableRot then
+			pcall(function() if h and h.AutoRotate then h.AutoRotate = false end end)
+		end
+	end)
 end
-if player.Character then setupChar(player.Character) end
-player.CharacterAdded:Connect(setupChar)
 
-Create file of this
+hookAutoRotate()
+lp.CharacterAdded:Connect(function()
+	task.wait(0.05)
+	hookAutoRotate()
+end)
+
+local function angleDiff(a, b)
+	local diff = a - b
+	while math.pi < diff do diff = diff - 2 * math.pi end
+	while diff < -math.pi do diff = diff + 2 * math.pi end
+	return diff
+end
+
+local function easeCubic(x)
+	x = math.clamp(x, 0, 1)
+	return 1 - (1 - x) ^ 3
+end
+
+local function getHumAndAnim()
+	if not char or not char.Parent then return nil, nil end
+	local h = char:FindFirstChildOfClass("Humanoid")
+	if not h then return nil, nil end
+	local anim = h:FindFirstChildOfClass("Animator") or Instance.new("Animator")
+	if not anim.Parent then anim.Name = "Animator" anim.Parent = h end
+	return h, anim
+end
+
+local function playSideAnim(isLeft)
+	pcall(function() if sideAnim and sideAnim.IsPlaying then sideAnim:Stop() end end)
+	sideAnim = nil
+	local h, animator = getHumAndAnim()
+	if not h or not animator then return end
+	local id = isLeft and leftId or rightId
+	if not id then return end
+	local anim = Instance.new("Animation")
+	anim.Name = "SideAnim"
+	anim.AnimationId = "rbxassetid://" .. tostring(id)
+	local success, track = pcall(function() return animator:LoadAnimation(anim) end)
+	if not success or not track then anim:Destroy() return end
+	sideAnim = track
+	track.Priority = Enum.AnimationPriority.Action
+	pcall(function() track.Looped = false end)
+	track:Play()
+	pcall(function() dashSfx:Stop() dashSfx:Play() end)
+	delay((TOTAL_TIME or 0.45) + 0.15, function()
+		pcall(function() if track and track.IsPlaying then track:Stop() end end)
+		pcall(function() anim:Destroy() end)
+	end)
+end
+
+local function findTarget(range)
+	range = range or dashRange
+	local closest = nil
+	local closestDist = math.huge
+	if not hrp then return nil end
+	local myPos = hrp.Position
+	for _, player in pairs(plrs:GetPlayers()) do
+		if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+			local targetHum = player.Character.Humanoid
+			if targetHum and targetHum.Health > 0 then
+				local dist = (player.Character.HumanoidRootPart.Position - myPos).Magnitude
+				if dist < closestDist and dist <= range then
+					closest = player.Character
+					closestDist = dist
+				end
+			end
+		end
+	end
+	for _, model in pairs(ws:GetDescendants()) do
+		if model:IsA("Model") and model:FindFirstChild("Humanoid") and model:FindFirstChild("HumanoidRootPart") and not plrs:GetPlayerFromCharacter(model) then
+			local targetHum = model.Humanoid
+			if targetHum and targetHum.Health > 0 then
+				local dist = (model.HumanoidRootPart.Position - myPos).Magnitude
+				if dist < closestDist and dist <= range then
+					closest = model
+					closestDist = dist
+				end
+			end
+		end
+	end
+	return closest, closestDist
+end
+
+local function getDashDuration(val)
+	return 1.5 + (0.12 - 1.5) * math.clamp(val or 84, 0, 100) / 100
+end
+
+local function getDashAngle(val)
+	return 90 + 990 * math.clamp(val or 56, 0, 100) / 100
+end
+
+local function getDashDist(val)
+	return 1 + 11 * math.clamp(val or 50, 0, 100) / 100
+end
+
+local selectedTarget = nil
+plrs.PlayerRemoving:Connect(function(p) if selectedTarget == p then selectedTarget = nil end end)
+
+local function getCurrentTarget()
+	if selectedTarget then
+		if selectedTarget.Character and selectedTarget.Character.Parent then
+			local tChar = selectedTarget.Character
+			local tHrp = tChar:FindFirstChild("HumanoidRootPart")
+			local tHum = tChar:FindFirstChildOfClass("Humanoid")
+			if tHrp and tHum and tHum.Health > 0 and hrp then
+				if (tHrp.Position - hrp.Position).Magnitude <= dashRange then
+					return tChar
+				end
+				return nil
+			end
+		end
+		selectedTarget = nil
+	end
+	return findTarget(dashRange)
+end
+
+local function straightDash(target, speed)
+	if not speed then speed = straightSpeed end
+	if not target or not target.Parent or not hrp or not hrp.Parent then return end
+	local attach = Instance.new("Attachment")
+	attach.Name = "DashAttach"
+	attach.Parent = hrp
+	local vel = Instance.new("LinearVelocity")
+	vel.Name = "DashVelocity"
+	vel.Attachment0 = attach
+	vel.MaxForce = math.huge
+	vel.RelativeTo = Enum.ActuatorRelativeTo.World
+	vel.Parent = hrp
+	local animTrack = nil
+	local animObj = nil
+	local reached = false
+	local active = true
+	if straightId then
+		local h, animator = getHumAndAnim()
+		if h and animator then
+			animObj = Instance.new("Animation")
+			animObj.Name = "StraightAnim"
+			animObj.AnimationId = "rbxassetid://" .. tostring(straightId)
+			local success, track = pcall(function() return animator:LoadAnimation(animObj) end)
+			if success and track then
+				animTrack = track
+				track.Priority = Enum.AnimationPriority.Movement
+				pcall(function() track.Looped = false end)
+				track:Play()
+			else
+				pcall(function() animObj:Destroy() end)
+			end
+		end
+	end
+	local conn
+	conn = run.Heartbeat:Connect(function()
+		if not active then return end
+		if not target or not target.Parent or not hrp or not hrp.Parent then
+			active = false
+			conn:Disconnect()
+			pcall(function() vel:Destroy() end)
+			pcall(function() attach:Destroy() end)
+			pcall(function() if animTrack then animTrack:Stop() end if animObj then animObj:Destroy() end end)
+			return
+		end
+		local targetPos = target.Position
+		local diff = targetPos - hrp.Position
+		local flatDiff = Vector3.new(diff.X, 0, diff.Z)
+		if flatDiff.Magnitude <= targetDist then
+			reached = true
+			active = false
+			conn:Disconnect()
+			pcall(function() vel:Destroy() end)
+			pcall(function() attach:Destroy() end)
+			pcall(function() if animTrack then animTrack:Stop() end if animObj then animObj:Destroy() end end)
+			return
+		end
+		vel.VectorVelocity = flatDiff.Unit * speed
+		pcall(function() if flatDiff.Magnitude > 0.001 then hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + flatDiff.Unit) end end)
+	end)
+	while not reached and target and target.Parent and hrp and hrp.Parent do task.wait() end
+end
+
+local sliderVals = {}
+local savedSettings = nil
+local attr = lp:GetAttribute("SettingsV2")
+if type(attr) == "string" then
+	pcall(function()
+		savedSettings = http:JSONDecode(attr)
+		if savedSettings and savedSettings.Sliders then
+			for name, val in pairs(savedSettings.Sliders) do
+				local num = tonumber(val)
+				if num then
+					sliderVals[name] = math.clamp(math.floor(num), 0, 100)
+				end
+			end
+		end
+	end)
+end
+
+local function sendComm(data)
+	pcall(function()
+		local char = lp.Character
+		if char and char:FindFirstChild("Communicate") then
+			char.Communicate:FireServer(unpack(data))
+		end
+	end)
+end
+
+local m1Enabled = false
+local dashEnabled = false
+local settingsGui = Instance.new("ScreenGui")
+settingsGui.Name = "SettingsGui"
+settingsGui.ResetOnSpawn = false
+settingsGui.Parent = lp:WaitForChild("PlayerGui")
+local clickSfx = Instance.new("Sound")
+clickSfx.SoundId = "rbxassetid://6042053626"
+clickSfx.Volume = 0.7
+clickSfx.Parent = settingsGui
+
+local function makeDraggable(gui)
+	local dragging, dragInput, startPos, startMouse
+	gui.InputBegan:Connect(function(inp)
+		if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			startMouse = inp.Position
+			startPos = gui.Position
+			inp.Changed:Connect(function() if inp.UserInputState == Enum.UserInputState.End then dragging = false end end)
+		end
+	end)
+	input.InputChanged:Connect(function(inp)
+		if dragging and (inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement) then
+			local delta = inp.Position - startMouse
+			gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+local function createToggle(text, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 100, 0, 35)
+	btn.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+	btn.Text = text
+	btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+	btn.AutoButtonColor = false
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.new(0, 15, 0, 15)
+	dot.Position = UDim2.new(1, -24, 0.5, -7)
+	dot.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
+	dot.Parent = btn
+	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+	local enabled = false
+	local function update()
+		dot.BackgroundColor3 = enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(180, 180, 180)
+		btn.BackgroundColor3 = enabled and Color3.fromRGB(220, 220, 220) or Color3.fromRGB(245, 245, 245)
+	end
+	local function set(val, fire)
+		enabled = not not val
+		update()
+		if fire and callback then
+			pcall(function() callback(enabled) end)
+		end
+	end
+	btn.MouseButton1Click:Connect(function()
+		pcall(function() clickSfx:Play() end)
+		set(not enabled, true)
+	end)
+	return btn, set
+end
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 340, 0, 270)
+mainFrame.Position = UDim2.new(0.5, -170, 0.5, -135)
+mainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+mainFrame.BackgroundTransparency = 0.3
+mainFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BorderSizePixel = 2
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = settingsGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+mainFrame.Size = UDim2.new(0, 0, 0, 0)
+tween:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 340, 0, 270)}):Play()
+
+local header = Instance.new("TextLabel")
+header.Size = UDim2.new(1, 0, 0, 35)
+header.BackgroundColor3 = Color3.fromRGB(235, 235, 235)
+header.Text = "Settings V1"
+header.TextColor3 = Color3.fromRGB(0, 0, 0)
+header.Font = Enum.Font.GothamBold
+header.TextSize = 18
+header.Parent = mainFrame
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 35, 0, 35)
+closeBtn.Position = UDim2.new(1, -40, 0, 0)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+closeBtn.Text = "-"
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+closeBtn.TextSize = 20
+closeBtn.Parent = mainFrame
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+closeBtn.AutoButtonColor = false
+
+local toggleFrame = Instance.new("Frame")
+toggleFrame.Size = UDim2.new(1, -20, 0, 90)
+toggleFrame.Position = UDim2.new(0, 10, 0, 45)
+toggleFrame.BackgroundTransparency = 1
+toggleFrame.Parent = mainFrame
+local grid = Instance.new("UIGridLayout")
+grid.CellSize = UDim2.new(0.5, -10, 0, 35)
+grid.CellPadding = UDim2.new(0, 10, 0, 10)
+grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+grid.VerticalAlignment = Enum.VerticalAlignment.Top
+grid.Parent = toggleFrame
+
+local m1Btn, setM1 = createToggle("M1", function(v) m1Enabled = v end)
+m1Btn.Parent = toggleFrame
+local dashBtn, setDash = createToggle("Dash", function(v) dashEnabled = v end)
+dashBtn.Parent = toggleFrame
+
+local discordLink = "https://discord.gg/M8G6y32Gxt"
+local discordBtn = Instance.new("TextButton")
+discordBtn.Size = UDim2.new(0, 100, 0, 35)
+discordBtn.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+discordBtn.Text = "Discord"
+discordBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+discordBtn.Font = Enum.Font.GothamBold
+discordBtn.TextSize = 14
+discordBtn.Parent = toggleFrame
+Instance.new("UICorner", discordBtn).CornerRadius = UDim.new(0, 8)
+discordBtn.AutoButtonColor = false
+discordBtn.MouseButton1Click:Connect(function()
+	pcall(function() clickSfx:Play() end)
+	local copied = false
+	pcall(function() if setclipboard then setclipboard(discordLink) copied = true end end)
+	if not copied then
+		pcall(function() lp:SetAttribute("LastDiscordInvite", discordLink) end)
+	end
+	local oldText = discordBtn.Text
+	discordBtn.Text = copied and "Copied" or "Stored"
+	task.delay(0.9, function() pcall(function() discordBtn.Text = oldText end) end)
+end)
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -20, 0, 70)
+scroll.Position = UDim2.new(0, 10, 0, 145)
+scroll.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+scroll.ScrollBarThickness = 4
+scroll.Parent = mainFrame
+Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
+local list = Instance.new("UIListLayout")
+list.Padding = UDim.new(0, 4)
+list.Parent = scroll
+
+local function refreshList()
+	for _, child in ipairs(scroll:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+	for _, player in ipairs(plrs:GetPlayers()) do
+		if player ~= lp then
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1, -10, 0, 26)
+			btn.BackgroundColor3 = Color3.fromRGB(235, 235, 235)
+			btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+			btn.TextXAlignment = Enum.TextXAlignment.Left
+			btn.TextSize = 14
+			btn.Font = Enum.Font.Gotham
+			btn.Text = "   " .. player.Name
+			btn.Parent = scroll
+			btn.MouseButton1Click:Connect(function()
+				selectedTarget = player
+				for _, b in ipairs(scroll:GetChildren()) do
+					if b:IsA("TextButton") then b.BackgroundColor3 = Color3.fromRGB(235, 235, 235) end
+				end
+				btn.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+			end)
+			btn.MouseButton2Click:Connect(function()
+				if selectedTarget == player then
+					selectedTarget = nil
+					btn.BackgroundColor3 = Color3.fromRGB(235, 235, 235)
+				end
+			end)
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+			if selectedTarget == player then btn.BackgroundColor3 = Color3.fromRGB(100, 200, 255) end
+		end
+	end
+end
+
+refreshList()
+
+local refreshBtn = Instance.new("TextButton")
+refreshBtn.Size = UDim2.new(0, 110, 0, 36)
+refreshBtn.Position = UDim2.new(1, -122, 1, -44)
+refreshBtn.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+refreshBtn.Text = "Refresh"
+refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+refreshBtn.Font = Enum.Font.GothamBold
+refreshBtn.TextSize = 16
+refreshBtn.Parent = mainFrame
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 12)
+refreshBtn.AutoButtonColor = false
+
+local adjustBtn = Instance.new("TextButton")
+adjustBtn.Size = UDim2.new(0, 110, 0, 36)
+adjustBtn.Position = UDim2.new(0, 12, 1, -44)
+adjustBtn.BackgroundColor3 = Color3.fromRGB(110, 110, 110)
+adjustBtn.Text = "Adjust"
+adjustBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+adjustBtn.Font = Enum.Font.GothamBold
+adjustBtn.TextSize = 16
+adjustBtn.Parent = mainFrame
+Instance.new("UICorner", adjustBtn).CornerRadius = UDim.new(0, 12)
+adjustBtn.AutoButtonColor = false
+
+refreshBtn.MouseButton1Click:Connect(function()
+	pcall(function() clickSfx:Play() end)
+	refreshList()
+end)
+
+plrs.PlayerRemoving:Connect(function(p)
+	if selectedTarget == p then selectedTarget = nil end
+	refreshList()
+end)
+
+plrs.PlayerAdded:Connect(refreshList)
+
+local settingsBtn = Instance.new("TextButton")
+settingsBtn.Size = UDim2.new(0, 60, 0, 35)
+settingsBtn.Position = UDim2.new(0.5, -30, 0.5, -17)
+settingsBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+settingsBtn.Text = "Settings"
+settingsBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+settingsBtn.Font = Enum.Font.GothamBold
+settingsBtn.TextSize = 14
+settingsBtn.Visible = false
+settingsBtn.Parent = settingsGui
+settingsBtn.BorderSizePixel = 2
+settingsBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
+Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0, 10)
+settingsBtn.AutoButtonColor = false
+
+local function addClickTween(btn, callback)
+	btn.MouseButton1Click:Connect(function()
+		btn:TweenSize(btn.Size - UDim2.new(0, 5, 0, 5), "Out", "Quad", 0.08, true, function()
+			btn:TweenSize(btn.Size + UDim2.new(0, 5, 0, 5), "Out", "Quad", 0.08)
+			if callback then callback() end
+		end)
+	end)
+end
+
+addClickTween(closeBtn, function()
+	pcall(function() clickSfx:Play() end)
+	local tweenOut = tween:Create(mainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+	tweenOut:Play()
+	tweenOut.Completed:Wait()
+	mainFrame.Visible = false
+	settingsBtn.Visible = true
+end)
+
+addClickTween(settingsBtn, function()
+	pcall(function() clickSfx:Play() end)
+	settingsBtn.Visible = false
+	mainFrame.Visible = true
+	mainFrame.Size = UDim2.new(0, 0, 0, 0)
+	tween:Create(mainFrame, TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 340, 0, 270)}):Play()
+end)
+
+makeDraggable(mainFrame)
+makeDraggable(settingsBtn)
+
+local adjustGui = nil
+local function showAdjustGui()
+	if adjustGui and adjustGui.Parent then
+		adjustGui:Destroy()
+		adjustGui = nil
+		return
+	end
+	adjustGui = Instance.new("ScreenGui")
+	adjustGui.Name = "AdjustGui"
+	adjustGui.Parent = lp:WaitForChild("PlayerGui")
+	adjustGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	local frame = Instance.new("Frame")
+	frame.Parent = adjustGui
+	frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	frame.BackgroundTransparency = 0.3
+	frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	frame.Size = UDim2.new(0, 320, 0, 240)
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	makeDraggable(frame)
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+	local stroke = Instance.new("UIStroke")
+	stroke.Parent = frame
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
+	local close = Instance.new("TextButton")
+	close.Parent = frame
+	close.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+	close.Position = UDim2.new(0.82, 0, 0.05, 0)
+	close.Size = UDim2.new(0, 30, 0, 30)
+	close.Font = Enum.Font.GothamBold
+	close.Text = "X"
+	close.TextColor3 = Color3.fromRGB(255, 255, 255)
+	close.TextScaled = true
+	close.AutoButtonColor = false
+	Instance.new("UICorner", close).CornerRadius = UDim.new(0, 6)
+	close.MouseButton1Click:Connect(function() frame:Destroy() end)
+	local sliders = {"Dash speed", "Dash Degrees", "Dash gap"}
+	for i, name in ipairs(sliders) do
+		local label = Instance.new("TextLabel")
+		label.Parent = frame
+		label.BackgroundTransparency = 1
+		label.Text = name
+		label.Font = Enum.Font.Gotham
+		label.TextColor3 = Color3.fromRGB(120, 120, 120)
+		label.TextScaled = true
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.Size = UDim2.new(0, 120, 0, 20)
+		label.Position = UDim2.new(0.04, 0, 0.18 + (i - 1) * 0.24, 0)
+		local container = Instance.new("Frame")
+		container.Parent = frame
+		container.BackgroundTransparency = 1
+		container.Size = UDim2.new(0, 160, 0, 24)
+		container.Position = UDim2.new(0.38, 5, 0.18 + (i - 1) * 0.24, 0)
+		local bar = Instance.new("Frame")
+		bar.Parent = container
+		bar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		bar.BackgroundTransparency = 0.7
+		bar.Size = UDim2.new(1, -20, 0, 6)
+		bar.Position = UDim2.new(0, 10, 0.5, -3)
+		Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+		local handle = Instance.new("TextButton")
+		handle.Parent = container
+		handle.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
+		handle.Size = UDim2.new(0, 20, 0, 20)
+		handle.Position = UDim2.new(0, -10, 0.5, -10)
+		handle.Text = ""
+		handle.AutoButtonColor = false
+		handle.ZIndex = 2
+		Instance.new("UICorner", handle).CornerRadius = UDim.new(1, 0)
+		local valLabel = Instance.new("TextLabel")
+		valLabel.Parent = frame
+		valLabel.Size = UDim2.new(0, 70, 0, 20)
+		valLabel.Position = UDim2.new(0.82, 0, 0.18 + (i - 1) * 0.24, 0)
+		valLabel.BackgroundTransparency = 1
+		valLabel.Font = Enum.Font.GothamBold
+		valLabel.TextColor3 = Color3.fromRGB(25, 25, 25)
+		valLabel.TextSize = 14
+		valLabel.Text = "--"
+		local dragging = false
+		local value = 0
+		local default = name == "Dash speed" and 49 or name == "Dash Degrees" and 32 or 14
+		value = sliderVals[name] ~= nil and sliderVals[name] or default
+		handle.Position = UDim2.new(value / 100, -10, 0.5, -10)
+		sliderVals[name] = value
+		local function updateLabel()
+			if name == "Dash speed" then
+				valLabel.Text = string.format("%.2fs", getDashDuration(value))
+			elseif name == "Dash Degrees" then
+				valLabel.Text = string.format("%d°", math.floor(getDashAngle(value)))
+			elseif name == "Dash gap" then
+				valLabel.Text = string.format("%.1f", getDashDist(value))
+			else
+				valLabel.Text = tostring(value)
+			end
+		end
+		updateLabel()
+		local function setValue(x)
+			local barWidth = bar.AbsoluteSize.X
+			local barX = bar.AbsolutePosition.X
+			if barWidth == 0 then return end
+			local t = math.clamp((x - barX) / barWidth, 0, 1)
+			handle.Position = UDim2.new(t, -10, 0.5, -10)
+			value = math.floor(t * 100)
+			sliderVals[name] = value
+			updateLabel()
+		end
+		handle.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				if inp.Position then setValue(inp.Position.X) end
+			end
+		end)
+		handle.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				dragging = false
+			end
+		end)
+		bar.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				if inp.Position then setValue(inp.Position.X) end
+			end
+		end)
+		bar.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				dragging = false
+			end
+		end)
+		container.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+				dragging = true
+				if inp.Position then setValue(inp.Position.X) end
+			end
+		end)
+		container.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+				dragging = false
+			end
+		end)
+		input.InputChanged:Connect(function(inp)
+			if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) and inp.Position then
+				setValue(inp.Position.X)
+			end
+		end)
+	end
+end
+
+adjustBtn.MouseButton1Click:Connect(function()
+	pcall(function() clickSfx:Play() end)
+	showAdjustGui()
+end)
+
+if savedSettings then
+	if savedSettings.Dash ~= nil and setDash then
+		setDash(savedSettings.Dash, true)
+		dashEnabled = savedSettings.Dash
+	end
+	if savedSettings.M1 ~= nil and setM1 then
+		setM1(savedSettings.M1, true)
+		m1Enabled = savedSettings.M1
+	end
+end
+
+local function createDashButton()
+	local ui = Instance.new("ScreenGui")
+	ui.Name = "DashButtonGui"
+	ui.ResetOnSpawn = false
+	ui.Parent = lp:WaitForChild("PlayerGui")
+	local btn = Instance.new("ImageButton")
+	btn.Name = "DashButton"
+	btn.Size = UDim2.new(0, 110, 0, 110)
+	btn.Position = UDim2.new(0.5, -55, 0.8, -55)
+	btn.BackgroundTransparency = 1
+	btn.BorderSizePixel = 0
+	btn.Image = "rbxassetid://99317918824094"
+	btn.Parent = ui
+	local scale = Instance.new("UIScale", btn)
+	scale.Scale = 1
+	local sound = Instance.new("Sound", btn)
+	sound.SoundId = btnImage
+	sound.Volume = 0.9
+	local dragging, dragStart, startPos, dragInput
+	local function tweenScale(target, time)
+		local t = tween:Create(scale, TweenInfo.new(time or 0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = target})
+		t:Play()
+	end
+	btn.InputBegan:Connect(function(inp)
+		if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = inp.Position
+			startPos = btn.Position
+			dragInput = inp
+			tweenScale(0.92, 0.06)
+			sound:Play()
+		end
+	end)
+	input.InputChanged:Connect(function(inp)
+		if dragging and dragStart and (inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement) then
+			local delta = inp.Position - dragStart
+			btn.Position = UDim2.new(0, math.clamp(startPos.X.Offset + delta.X, 0, cam.ViewportSize.X - btn.AbsoluteSize.X), 0, math.clamp(startPos.Y.Offset + delta.Y, 0, cam.ViewportSize.Y - btn.AbsoluteSize.Y))
+		end
+	end)
+	input.InputEnded:Connect(function(inp)
+		if inp == dragInput and dragging then
+			if (inp.Position - dragStart).Magnitude < 8 and tick() - lastDash >= 2 then
+				if not isDead() then
+					local target = getCurrentTarget()
+					if target then
+						circularDash(target)
+					end
+				end
+			end
+			tweenScale(1, 0.06)
+			dragging = false
+		end
+	end)
+end
+
+input.InputBegan:Connect(function(inp, gp)
+	if gp or isDashing then return end
+	if isDead() then return end
+	local key = input.GamepadEnabled and Enum.KeyCode.DPadUp or Enum.KeyCode.G
+	local shouldDash = false
+	if inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode and (inp.KeyCode == Enum.KeyCode.X or inp.KeyCode == key) then
+		shouldDash = true
+	end
+	if (inp.UserInputType == Enum.UserInputType.Gamepad1 or inp.UserInputType == Enum.UserInputType.Gamepad2 or inp.UserInputType == Enum.UserInputType.Gamepad3 or inp.UserInputType == Enum.UserInputType.Gamepad4) and inp.KeyCode == Enum.KeyCode.DPadUp then
+		shouldDash = true
+	end
+	if inp.UserInputType == Enum.UserInputType.MouseButton1 and inp.Target and inp.Target.Name == "DashButton" then
+		shouldDash = true
+	end
+	if shouldDash then
+		local target = getCurrentTarget()
+		if target then
+			circularDash(target)
+		end
+	end
+end)
+
+local dashDur = 0.45
+local dashAngle = math.rad(480)
+
+function circularDash(target)
+	if isDashing then return end
+	if not target or not target:FindFirstChild("HumanoidRootPart") then return end
+	if not hrp then return end
+	isDashing = true
+	local h = char:FindFirstChildOfClass("Humanoid")
+	local oldRot = h and h.AutoRotate
+	if h then
+		shouldDisableRot = true
+		pcall(function() h.AutoRotate = false end)
+	end
+	local function restore()
+		if h and oldRot ~= nil then
+			shouldDisableRot = false
+			pcall(function() h.AutoRotate = oldRot end)
+		end
+	end
+	local speedVal = sliderVals["Dash speed"]
+	if not speedVal then
+		speedVal = savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash speed"]) or 49
+	end
+	local angleVal = sliderVals["Dash Degrees"]
+	if not angleVal then
+		angleVal = savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash Degrees"]) or 32
+	end
+	local gapVal = sliderVals["Dash gap"]
+	if not gapVal then
+		gapVal = savedSettings and savedSettings.Sliders and tonumber(savedSettings.Sliders["Dash gap"]) or 14
+	end
+	local duration = getDashDuration(speedVal)
+	local angle = math.rad(getDashAngle(angleVal))
+	local gap = math.clamp(getDashDist(gapVal), minGap, maxGap)
+	local targetHrp = target.HumanoidRootPart
+	if (targetHrp.Position - hrp.Position).Magnitude >= targetDist then
+		straightDash(targetHrp, straightSpeed)
+	end
+	if not targetHrp or not targetHrp.Parent or not hrp or not hrp.Parent then
+		restore()
+		isDashing = false
+		return
+	end
+	local targetPos = targetHrp.Position
+	local myPos = hrp.Position
+	local right = hrp.CFrame.RightVector
+	local dir = targetPos - myPos
+	if dir.Magnitude < 0.001 then dir = hrp.CFrame.LookVector end
+	local isLeft = right:Dot(dir.Unit) < 0
+	playSideAnim(isLeft)
+	local dirMult = isLeft and 1 or -1
+	local startAngle = math.atan2(targetPos.Z - myPos.Z, targetPos.X - myPos.X)
+	local startDist = math.clamp((Vector3.new(targetPos.X, 0, targetPos.Z) - Vector3.new(myPos.X, 0, myPos.Z)).Magnitude, minGap, maxGap)
+	local start = tick()
+	local conn
+	local aimed = false
+	local finished = false
+	local canEnd = false
+	local endQueued = false
+	local function cleanup()
+		if finished then return end
+		finished = true
+		task.delay(0.7, function()
+			canEnd = true
+			if endQueued then
+				isDashing = false
+			end
+		end)
+		restore()
+		lastDash = tick()
+	end
+	if m1Enabled then
+		sendComm({{Mobile = true, Goal = "LeftClick"}})
+		task.delay(0.05, function() sendComm({{Goal = "LeftClickRelease", Mobile = true}}) end)
+	end
+	if dashEnabled then
+		sendComm({{Dash = Enum.KeyCode.W, Key = Enum.KeyCode.Q, Goal = "KeyPress"}})
+	end
+	conn = run.Heartbeat:Connect(function()
+		local t = math.clamp((tick() - start) / duration, 0, 1)
+		local e = easeCubic(t)
+		local curDist = math.clamp(startDist + (gap - startDist) * easeCubic(math.clamp(t * 1.5, 0, 1)), minGap, maxGap)
+		local curAngle = startAngle + dirMult * angle * easeCubic(t)
+		local targetCurrentPos = targetHrp.Position
+		local nextPos = Vector3.new(targetCurrentPos.X + curDist * math.cos(curAngle), targetCurrentPos.Y, targetCurrentPos.Z + curDist * math.sin(curAngle))
+		local lookTarget = targetCurrentPos or nextPos
+		local lookAngle = math.atan2((lookTarget - nextPos).Z, (lookTarget - nextPos).X)
+		local camAngle = math.atan2(hrp.CFrame.LookVector.Z, hrp.CFrame.LookVector.X)
+		local finalAngle = camAngle + angleDiff(lookAngle, camAngle) * 0.7
+		pcall(function() hrp.CFrame = CFrame.new(nextPos, nextPos + Vector3.new(math.cos(finalAngle), 0, math.sin(finalAngle))) end)
+		if not aimed and aspect <= e then
+			aimed = true
+			cleanup()
+		end
+		if t >= 1 then
+			conn:Disconnect()
+			pcall(function() if sideAnim and sideAnim.IsPlaying then sideAnim:Stop() end sideAnim = nil end)
+			if not aimed then
+				aimed = true
+				cleanup()
+			end
+			endQueued = true
+			if canEnd then
+				isDashing = false
+			end
+		end
+	end)
+end
+
+createDashButton()
